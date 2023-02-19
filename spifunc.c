@@ -157,3 +157,8 @@ void spi_PowerOnDisplay(void)
 	spi_send_recv(0xAF);
 	spi_send_recv(0xA5);
 }
+
+void adc_Init(){
+	
+
+}

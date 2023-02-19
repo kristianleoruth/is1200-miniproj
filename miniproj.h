@@ -5,7 +5,7 @@ void spi_PowerOnDisplay(void); // Kristian
 uint8_t spi_send_recv(uint8_t data);
 
 /* Display functions */
-void disp_Write(const uint8_t pix[128][32]); // Lennart
+void disp_Write(const uint8_t pix[32][128]); // Lennart
 
 
 /* Timer functions */
