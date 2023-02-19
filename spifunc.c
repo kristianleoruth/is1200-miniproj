@@ -2,8 +2,8 @@
 #include <pic32mx.h>
 #include "miniproj.h"
 
-#define SPI_DISPLAY_MODE_COMMAND (PORTF &= 0xffffffef) // Pin 39 (D/C#) is RF4, set to 0 is Command Mode
-#define SPI_DISPLAY_MODE_DATA (PORTF |= 0x10) // 1 is Data Mode
+#define SPI_DISPLAY_MODE_COMMAND (PORTFCLR = 0x10) // Pin 39 (D/C#) is RF4, set to 0 is Command Mode
+#define SPI_DISPLAY_MODE_DATA (PORTFSET = 0x10) // 1 is Data Mode
 
 // Set Vdd Enable (Pin 38, RF6)
 #define SPI_POWER_ON_VDD (PORTFCLR = 0x40)
@@ -11,7 +11,7 @@
 // VBAT Enable (Pin 40, RF4)
 #define SPI_POWER_ON_VBAT (PORTFCLR = 0x20)
 
-// Reset Pin (RD5) Active Low
+// Reset Pin (Pin 10, RG9) Active Low
 #define SPI_RESET_ON (PORTGCLR = 0x200)
 #define SPI_RESET_OFF (PORTGSET = 0x200)
 
@@ -49,7 +49,7 @@ This bit is only set by hardware. It can be cleared by writing a zero, preferabl
 SPIxSTATCLR = 1<<6. It can also be cleared by disabling and re-enabling the module using the
 SPIxCON.ON bit.
 */
-void spi_DisplayInit(void)
+void spi_Config(void)
 {
 	TRISECLR = 0xFF;
 	TRISFCLR = 0x70;  //  Set D/C#, VDD, VCC as outputs
@@ -130,16 +130,16 @@ uint8_t spi_send_recv(uint8_t data)
 */
 void spi_PowerOnDisplay(void)
 {
-	spi_DisplayInit();
+	spi_Config();
 
 	SPI_POWER_ON_VDD;
-	time_Timer3(1000);
+	time_Timer3(1000); // 1 millisecond
 
 	SPI_DISPLAY_MODE_COMMAND;
 	spi_send_recv(0xAE);
 
 	SPI_RESET_ON;
-	time_Timer3(50);
+	time_Timer3(50); // 50 microseconds
 	SPI_RESET_OFF;
 	time_Timer3(50);
 
@@ -155,10 +155,13 @@ void spi_PowerOnDisplay(void)
 	time_Timer3(100000);
 
 	spi_send_recv(0xAF);
-	spi_send_recv(0xA5);
-}
 
-void adc_Init(){
+	spi_send_recv(0xA1);
+	spi_send_recv(0xC8);
 	
-
+	spi_send_recv(0xDA);
+	spi_send_recv(0x20);
+	
+	spi_send_recv(0x20);
+	spi_send_recv(0x00);
 }
