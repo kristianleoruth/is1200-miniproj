@@ -68,28 +68,19 @@ int adc_GetDial() {
     return ADC1BUF0;
 }
 
-int btn1 () {
-    if (PORTF & 0x1) {
-        return 1;
+int btn(int select) {
+    switch (select) {
+        case 1:
+            return PORTF & 0x2;
+        case 2:
+            return PORTD & 0x20;
+        case 3:
+            return PORTD & 0x40;
+        case 4:
+            return PORTD & 0x80;
+        default:
+            return 0;
     }
-    return 0;
-}
-
-int btn2 () {
-    if (PORTD & 0x20) {
-        return 1;
-    }
-    return 0;
-}
-int btn3 () {
-    return PORTD & 0x40;
-}
-
-int btn4 () {
-    if (PORTD & 0x80) {
-        return 1;
-    }
-    return 0;
 }
 
 int sw1 () {
