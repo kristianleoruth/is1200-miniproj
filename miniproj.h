@@ -15,7 +15,8 @@ void disp_Text(char* str, uint8_t page, uint8_t col);
 uint8_t d_mat[32][128];
 
 /* Game */
-void GameUpdate();
+void game_Init();
+void game_Update();
 
 /* Switches and Btns */
 int btn(int select);

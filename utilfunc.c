@@ -2,7 +2,7 @@
 #include <pic32mx.h>
 #include "miniproj.h"
 
-const int mpt = 10; // seconds per tick
+int cspt = 5; // centiseconds per tick (100 = 1s)
 
 /* 
 time is in microseconds (us)
@@ -25,29 +25,22 @@ void time_Timer3(int time) {
 void time_Tick() {
 	T2CON |= 0x00008070; // Prescaling to 256, 8 to set ON bit = 1
 	TMR2 = 0;
-	PR2 = 3125; // Period register, 80MHz / 256 / 10
+	PR2 = 3125; // Period register, 80MHz / 256 / 100
 
 	int c = 0;
-	while (c < mpt) {
+	while (c < cspt) {
 		if (IFS(0) & 0x00000100) {
 			c++;
 			IFS(0) &= 0xFFFFFEFF;
 		}
 	}
+}
 
-
-	// T2CON |= 0x8030; // Set Timer 3 ON, Prescaling to 1:8, then 1 count is 100 ns
-	// TMR2 = 0;
-	// PR2 = 10000; // Count up to 10 and then change T3IF, this means every change is 1 millisecond
-
-	// int c = 0;
-	// while (c < 1) {
-	// 	if (IFS(0) & 0x100) {
-	// 		c++;
-	// 		IFS(0) |= 0xfffffeff; // Reset flag
-	// 	}
-	// }
-	// return;
+/* 
+Ignores units part
+*/
+void time_ChangeTickSpeed(int milliseconds) {
+    cspt = milliseconds / 10;
 }
 
 void adc_Init() {
