@@ -1,7 +1,6 @@
 #include <stdint.h>
 #include <pic32mx.h>
 #include "miniproj.h"
-
 // Set Vdd Enable (Pin 38, RF6)
 #define SPI_POWER_ON_VDD (PORTFCLR = 0x40)
 
