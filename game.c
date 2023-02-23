@@ -39,18 +39,18 @@ void WriteNumber(uint8_t num, uint8_t page, uint8_t col)
 	}
 }
 
-struct Coordinate
+typedef struct Coordinate
 {
 	signed char x;
 	signed char y;
-};
+} Coordinate;
 
-struct Block
+typedef struct Block
 {
 	uint8_t shape;
 	uint8_t rot;
-	struct Coordinate origin;
-};
+	Coordinate origin;
+} Block;
 
 uint8_t ground[32][128];
 
@@ -87,29 +87,33 @@ uint8_t blockSprites[] = {
 
 	0, 1, 0, 0,
 	0, 1, 1, 0,
-	0, 0, 1, 0
+	0, 0, 1, 0,
+	0, 0, 0, 0,
 
 };
 
-struct Block curBlock;
-struct Block storedBlock;
+Block curBlock;
+Block storedBlock;
 
 uint8_t spawnNext = 1;
 int score = 0;
 int diff;
 int isBlockStored = 0;
-int randomNumber = 5;
-int queueRotation = 0;
+
+int moves = 0;
+int rots = 0;
+
 int ticksPerFall = 5;
 unsigned int ticks = 0;
 
-char itoa(int i)
-{
-	return i >> 29;
+int rand() {
+	return (ticks + rots + moves) % 7;
 }
+
 void SpawnBlock()
 {
-	curBlock.shape = randomNumber % 7;
+	curBlock.shape = rand() % 7;
+	// curBlock.shape = 1;
 	curBlock.rot = 0;
 	curBlock.origin.x = 80;
 	curBlock.origin.y = 16;
@@ -148,10 +152,9 @@ void ResetDMat()
 Param: 16 item uint8_t array, block whose array sprite is to be determined
 Effect: Get a 16 item array (representing 4x4) sprite based on rotation and shape of a given block
 */
-void GetShapeSprite(uint8_t s[16], struct Block block)
+void GetShapeSprite(uint8_t s[16], Block block)
 {
 	// Calculate offset based on shape here
-	// Add code
 	int offset = block.shape * 16;
 
 	int i, j;
@@ -195,15 +198,15 @@ void GetShapeSprite(uint8_t s[16], struct Block block)
 }
 
 /*
-Helper struct for MoveBlock, stores coordinate and row to check if pixel is the left-/rightmost pixel in the shape
+Helper for MoveBlock, stores coordinate and row to check if pixel is the left-/rightmost pixel in the shape
 */
-struct _BlockPixel
+typedef struct _BlockPixel
 {
-	struct Coordinate o;
+	Coordinate o;
 	uint8_t row;
-};
+} _BlockPixel;
 
-void GetActivePixels(struct _BlockPixel activePixels[4], struct Block block)
+void GetActivePixels(_BlockPixel activePixels[4], Block block)
 {
 	uint8_t sprite[16];
 	GetShapeSprite(sprite, block);
@@ -213,7 +216,7 @@ void GetActivePixels(struct _BlockPixel activePixels[4], struct Block block)
 		if (!sprite[i])
 			continue;
 		// Calculate coordinate of pixel (origin + index)
-		struct _BlockPixel pxl;
+		_BlockPixel pxl;
 		pxl.o.x = block.origin.x + (i % 4) * 2;
 		pxl.o.y = block.origin.y + (i / 4) * 2;
 		pxl.row = i / 4;
@@ -228,37 +231,36 @@ Effect: Draws curBlock to d_mat
 void RenderBlock()
 {
 	int i, j;
-	struct _BlockPixel activePixels[4];
+	_BlockPixel activePixels[4];
 	GetActivePixels(activePixels, curBlock);
 
 	for (i = 0; i < 4; i++)
 	{
-		struct _BlockPixel pxl = activePixels[i];
+		_BlockPixel pxl = activePixels[i];
 
 		d_mat[pxl.o.y][pxl.o.x] = 1;
-		d_mat[pxl.o.y][pxl.o.x + 1] = 1;
+		d_mat[pxl.o.y][pxl.o.x - 1] = 1;
 		d_mat[pxl.o.y + 1][pxl.o.x] = 1;
-		d_mat[pxl.o.y + 1][pxl.o.x + 1] = 1;
+		d_mat[pxl.o.y + 1][pxl.o.x - 1] = 1;
 	}
 }
-
 
 void ShowStoredBlock()
 {
 	if (isBlockStored)
 	{
 		int i, j;
-		struct _BlockPixel activePixels[4];
+		_BlockPixel activePixels[4];
 		GetActivePixels(activePixels, storedBlock);
 
 		for (i = 0; i < 4; i++)
 		{
-			struct _BlockPixel pxl = activePixels[i];
+			_BlockPixel pxl = activePixels[i];
 
 			d_mat[pxl.o.y][pxl.o.x] = 1;
-			d_mat[pxl.o.y][pxl.o.x + 1] = 1;
+			d_mat[pxl.o.y][pxl.o.x - 1] = 1;
 			d_mat[pxl.o.y + 1][pxl.o.x] = 1;
-			d_mat[pxl.o.y + 1][pxl.o.x + 1] = 1;
+			d_mat[pxl.o.y + 1][pxl.o.x - 1] = 1;
 		}
 	}
 	return;
@@ -279,74 +281,86 @@ void RenderGround()
 int MoveCheckFall()
 {
 
-	struct Block desired = curBlock;
+	Block desired = curBlock;
 	desired.origin.x = curBlock.origin.x - 1;
-	struct _BlockPixel activePixels[4];
+	_BlockPixel activePixels[4];
 	GetActivePixels(activePixels, desired);
 	int i;
 	for (i = 0; i < 4; i++)
 	{
 
-		struct _BlockPixel pxl = activePixels[i];
-		if (pxl.o.x < 2 || ground[pxl.o.y][pxl.o.x])
+		_BlockPixel pxl = activePixels[i];
+		if (pxl.o.x == 0 || ground[pxl.o.y][pxl.o.x - 1])
 		{
 			return 0;
 		}
 	}
 	return 1;
 }
+
 void UpdateGround()
 {
-	struct _BlockPixel activePixels[4];
+	_BlockPixel activePixels[4];
 	GetActivePixels(activePixels, curBlock);
 	int x, y, i;
 	for (i = 0; i < 4; i++)
 	{
-		struct _BlockPixel pxl = activePixels[i];
+		_BlockPixel pxl = activePixels[i];
 		ground[pxl.o.y][pxl.o.x] = 1;
+		ground[pxl.o.y][pxl.o.x - 1] = 1;
 		ground[pxl.o.y + 1][pxl.o.x] = 1;
-		ground[pxl.o.y][pxl.o.x + 1] = 1;
-		ground[pxl.o.y + 1][pxl.o.x + 1] = 1;
+		ground[pxl.o.y + 1][pxl.o.x - 1] = 1;
 	}
 
-	for (x = 0; x < 128; x += 2)
-	{
-		int rowCounter = 0;
-		for (y = 0; y < 32; y++)
-		{
-			if (ground[y][x])
-			{
-				rowCounter++;
+	int deleteAmt = 0; // Going to be max 4
+	uint8_t r = 255;
+
+	for (x = 0; x < 128; x += 2) {
+		int rowFull = 1;
+		for (y = 0; y < 32; y += 2) {
+			if (!ground[y][x]) {
+				rowFull = 0;
+				break;
 			}
 		}
-		//if there is a full row
-		if (rowCounter == 32)
-		{
-			score += 100 * diff;
-			int k, h, f;
-			//delete row
-			for (k = 0; k < 32; k++)
-			{
-				ground[k][x] = 0;
-				ground[k][x + 1] = 0;
+		if (!rowFull)
+			continue;
+
+		r = x;
+		deleteAmt = 1;
+		break;
+	}
+
+	if (!deleteAmt)
+		return;
+
+	for (i = 0; i < 3; i++) {
+		int rowFull = 1;
+		x = r + 2 + i*2;
+		for (y = 0; y < 32; y++) {
+			if (!ground[y][x]) {
+				rowFull = 0;
+				break;
 			}
-			//shift all following rows down
-			for (h = x + 2; h < 128; h += 2)
-			{
-				for (f = 0; f < 32; f++)
-				{
-					ground[f][h - 2] = ground[f][h];
-					ground[f][h - 1] = ground[f][h + 1];
-				}
-			}
-			//reset x,y to check again through all
-			x, y = 0;
+		}
+
+		if (!rowFull)
+			break;
+		deleteAmt++;
+	}
+
+	WriteNumber(deleteAmt, 0, 15);
+
+	int shamt = deleteAmt * 2;
+
+	for (x = r + shamt; x < 128; x++) {
+		for (y = 0; y < 32; y++) {
+			ground[y][x - shamt] = ground[y][x];
 		}
 	}
 }
 
 void Fall()
-
 {
 	ticksPerFall = 500/adc_GetDial();
 	if (ticks % ticksPerFall == 0)
@@ -374,13 +388,13 @@ void RotateBlock()
 		- If a move is queued, then cancel the move
 	*/
 
-	struct Block desired = curBlock;
+	Block desired = curBlock;
 	if (desired.rot < 3)
 		desired.rot += 1;
 	else
 		desired.rot = 0;
 
-	struct _BlockPixel activePixels[4];
+	_BlockPixel activePixels[4];
 	GetActivePixels(activePixels, desired);
 
 	int i;
@@ -388,7 +402,7 @@ void RotateBlock()
 	int groundCollision = 0;
 	for (i = 0; i < 4; i++)
 	{
-		struct _BlockPixel pxl = activePixels[i];
+		_BlockPixel pxl = activePixels[i];
 
 		// Check walls
 		if (pxl.o.y <= LEFT_WALL)
@@ -405,9 +419,9 @@ void RotateBlock()
 
 		// Check ground
 		groundCollision = groundCollision && ground[pxl.o.y][pxl.o.x];
-		groundCollision = groundCollision && ground[pxl.o.y][pxl.o.x + 1];
+		groundCollision = groundCollision && ground[pxl.o.y][pxl.o.x - 1];
 		groundCollision = groundCollision && ground[pxl.o.y + 1][pxl.o.x];
-		groundCollision = groundCollision && ground[pxl.o.y + 1][pxl.o.x + 1];
+		groundCollision = groundCollision && ground[pxl.o.y + 1][pxl.o.x - 1];
 	}
 
 	if (groundCollision)
@@ -428,7 +442,7 @@ void RotateBlock()
 		int dist = 0;
 		for (i = 0; i < 4; i++)
 		{
-			struct _BlockPixel pxl = activePixels[i];
+			_BlockPixel pxl = activePixels[i];
 			if (pxl.o.y - RIGHT_WALL > dist && pxl.o.y >= RIGHT_WALL)
 				dist = pxl.o.y - RIGHT_WALL;
 		}
@@ -445,7 +459,7 @@ void RotateBlock()
 		int dist = 0;
 		for (i = 0; i < 4; i++)
 		{
-			struct _BlockPixel pxl = activePixels[i];
+			_BlockPixel pxl = activePixels[i];
 			if ((pxl.o.y - LEFT_WALL) * -1 > dist && pxl.o.y <= LEFT_WALL)
 				dist = (pxl.o.y - LEFT_WALL) * -1;
 		}
@@ -453,6 +467,7 @@ void RotateBlock()
 	}
 
 	curBlock.rot = desired.rot;
+	rots++;
 }
 
 /*
@@ -469,7 +484,7 @@ Notes:
 
 int MoveCheck(int x)
 {
-	struct _BlockPixel activePixels[4];
+	_BlockPixel activePixels[4];
 	int i, j = 0;
 
 	GetActivePixels(activePixels, curBlock);
@@ -480,12 +495,12 @@ int MoveCheck(int x)
 
 		for (i = 0; i < 4; i++)
 		{
-			struct _BlockPixel pxl = activePixels[i];
+			_BlockPixel pxl = activePixels[i];
 			uint8_t leftmost = 1;
 			// Check if there are any blocks further left
 			for (j = 0; j < 4; j++)
 			{
-				struct _BlockPixel _pxl = activePixels[j];
+				_BlockPixel _pxl = activePixels[j];
 				if (_pxl.row != pxl.row)
 					continue;
 				if (_pxl.o.y < pxl.o.y)
@@ -518,12 +533,12 @@ int MoveCheck(int x)
 
 		for (i = 0; i < 4; i++)
 		{
-			struct _BlockPixel pxl = activePixels[i];
+			_BlockPixel pxl = activePixels[i];
 			uint8_t rightmost = 1;
 			// Check if there are any blocks further left
 			for (j = 0; j < 4; j++)
 			{
-				struct _BlockPixel _pxl = activePixels[j];
+				_BlockPixel _pxl = activePixels[j];
 				if (_pxl.row != pxl.row)
 					continue;
 				if (_pxl.o.y > pxl.o.y)
@@ -559,12 +574,11 @@ void MoveBlock(int x)
 	if (!MoveCheck(x))
 		return;
 
-	if (x < 0)
-		curBlock.origin.y -= 2;
-	randomNumber += 2;
 	if (x > 0)
-		curBlock.origin.y += 2;
-	randomNumber -= 1;
+		curBlock.origin.y += 1;
+	if (x < 0)
+		curBlock.origin.y -= 1;
+	moves++;
 }
 
 void InputHandler()
@@ -606,6 +620,12 @@ void game_Init()
 			ground[i][j] = 0;
 		}
 	}
+
+	// for (i = 0; i < 30; i++) {
+	// 	for (j = 0; j < 8; j++) {
+	// 		ground[i][j] = 1;
+	// 	}
+	// }
 }
 
 int ln(int x)
@@ -617,6 +637,7 @@ void game_Update()
 {
 	ticks++;
 	ResetDMat();
+	// disp_VerticalText("123", 100, 0);
 	if (spawnNext)
 	{
 		SpawnBlock();
@@ -631,8 +652,8 @@ void game_Update()
 
 	/* 	WriteNumber(curBlock.origin.y, 0, 30);
 		WriteNumber(curBlock.origin.x, 0, 60); */
-	WriteNumber(score, 0, 90);
-	WriteNumber(isBlockStored, 0, 60);
+	// WriteNumber(score, 0, 90);
+	// WriteNumber(isBlockStored, 0, 60);
 	//WriteNumber(adc_GetDial(), 3, 30);
 	disp_Write();
 }

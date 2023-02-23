@@ -1,5 +1,4 @@
 #include <stdint.h>
-#include <stdlib.h>
 
 /* SPI */
 void spi_PowerOnDisplay(void); // Kristian
@@ -12,6 +11,7 @@ void spi_Reset(void);
 /* Display functions */
 void disp_Write();
 void disp_Text(char* str, uint8_t page, uint8_t col);
+void disp_VerticalText(char* str, uint8_t xOffset, uint8_t yOffset);
 uint8_t d_mat[32][128];
 
 /* Game */

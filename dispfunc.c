@@ -11,7 +11,7 @@
 #define SPI_RESET_ON (PORTGCLR = 0x200)
 #define SPI_RESET_OFF (PORTGSET = 0x200)
 
-uint8_t font_h[] = {
+uint8_t font[] = {
 	// 'A'
 	0,0,0,1,1,0,0,0,
 	0,0,1,0,0,1,0,0,
@@ -456,7 +456,7 @@ void disp_Write()
 }
 
 /*
-Description: Selects and returns relevant section of font_h array based on parameter
+Description: Selects and returns relevant section of font array based on parameter
 Param: ASCII byte representing a number or a letter, 48 item array
 Result: 48 item array (0/1), representing a matrix 8 cols x 6 rows (to leave some whitespace top & bottom)
 */
@@ -471,24 +471,65 @@ void CharToArr_h(char c, uint8_t* ca) {
 		mult = ci - 'A'; // Offset from A
 	
 	for (i = 0; i < 48; i++) {
-		ca[i] = font_h[i + 48*mult];
+		ca[i] = font[i + 48*mult];
 	}
 }
 
+void CharToArr_v(char c, uint8_t* ca) {
+	int i, ci = (int) c, mult;
+	for (i = 0; i < 48; i++)
+		ca[i] = 0;
+
+	if (ci <= 0x39)
+		mult = 26 + (ci - '0');
+	else if (ci <= 0x5A)
+		mult = ci - 'A'; // Offset from A
+	
+	/* Pattern for 270 deg rot:
+	index: 3 - col# + (row# * 4)
+	*/
+	/* Pattern for 90 deg rotation:
+	index: col# * 4 + 3 - row#
+	*/
+	// (40 + row#) - (col# * 8)
+	for (i = 0; i < 48; i++) {
+		// ca[i] = font[(i % 8) * 6 + 3 - ((i/8) * 6) + 48*mult];
+		// ca[i] = font[i + 48 * mult];
+		ca[i] = font[(40 + i/6) - ((i % 8) * 8) + 48*mult];
+	}
+
+}
+
 void disp_Text(char* str, uint8_t page, uint8_t col) {
-	int count = 0;
+	int index = 0;
 	uint8_t cArr[48];
 
 	page &= 3;
 	uint8_t row = page * 8 + 1;
 	int i, j;
-	while (str[count] != 0) {
-			CharToArr_h(str[count], cArr);
-			for (i = 0; i < 6; i++) {
-				for (j = 0; j < 8; j++) {
-					d_mat[row + i][col + j + count * 8] = cArr[i * 8 + j];
-				}
+	while (str[index] != 0) {
+		CharToArr_h(str[index], cArr);
+		for (i = 0; i < 6; i++) {
+			for (j = 0; j < 8; j++) {
+				d_mat[row + i][col + j + index * 8] = cArr[i * 8 + j];
 			}
-		count++;
+		}
+		index++;
+	}
+}
+
+void disp_VerticalText(char* str, uint8_t xOffset, uint8_t yOffset) {
+	int index = 0;
+	uint8_t cArr[48];
+
+	int i, j;
+	while (str[index] != 0) {
+		CharToArr_v(str[index], cArr);
+		for (i = 0; i < 6; i++) {
+			for (j = 0; j < 8; j++) {
+				d_mat[yOffset + i + index * 8][xOffset + j] = cArr[i * 8 + j];
+			}
+		}
+		index++;
 	}
 }
