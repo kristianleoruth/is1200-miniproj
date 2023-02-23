@@ -50,14 +50,17 @@ void adc_Init() {
     AD1CSSL = 0;
     AD1CON3 = 0x0002; //set conversion clock
     AD1CON2 = 0;
-    AD1CON1SET = 0x8000; //turn adc-module on
+    TRISBCLR = 0x400;
+    time_Timer3(1000); //100ms delay
 }
 
 int adc_GetDial() {
-
+    AD1CON1SET = 0x8000; //turn adc-module on
     AD1CON1SET = 0x0002; //tell SAH to start sampling 
-    time_Timer3(100000); //100ms delay
-    while(!(AD1CON1&0x0001)); //is the conversion done?
+    time_Timer3(10000); //100ms delay
+    AD1CON1CLR = 0x0002;
+    while(!(AD1CON1&0x0001));
+    AD1CON1 = 0;
     return ADC1BUF0;
 }
 

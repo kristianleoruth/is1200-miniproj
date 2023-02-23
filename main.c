@@ -93,7 +93,7 @@ int main() {
 	// 	}
 	// }
 	spi_PowerOnDisplay();
-
+	adc_Init();
 	// disp_Text("TETRIS", 1, 40);
 
 	// disp_Text("PLAY", 2, 20);
@@ -113,6 +113,7 @@ int main() {
 	while(1) {
 		game_Update();
 		time_Tick();
+		PORTE = adc_GetDial();
 	}
 
 	return 0;
