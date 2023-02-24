@@ -15,8 +15,7 @@ void disp_VerticalText(char* str, uint8_t xOffset, uint8_t yOffset);
 uint8_t d_mat[32][128];
 
 /* Game */
-void game_Init();
-void game_Update();
+void game_Loop();
 
 /* Switches and Btns */
 int btn(int select);

@@ -113,50 +113,54 @@ int main()
 
 	TRISFSET = 0xf;
 	TRISDSET = 0xff;
-	int play_select = 1;
+
 
 	while (1)
 	{	
-		//while in menu, check for play_select
-		int test = !(btn(1) && sw(1));
-		PORTE = test;
-		if (btn(1)) {
-			if(play_select) {
-				play_select = 0;
-			} else {
-				play_select = 1;
-			}
-		}
-		//shows menu depending on play select
-		ShowMenu(play_select);
-		if (play_select && btn(2))
-		{
-			//gan
-			game_Init();
-			 // gameloop
-			while (1)
-			{
-				game_Update();
-				time_Tick();
-				PORTE = adc_GetDial();
-				if(Pause()) //pause returns 1 if the exit button (btn1) is pressed while the game is paused
-					break;
-			}
-		}
-		if (!play_select && btn(2)) {
-			//loop for Score display
-			while(1) {
-				//ShowScores();
-				
-				if(btn(1)) //btn1 to exit score menu
-					break;
-			}
-
-		}
-		disp_Write();
+		game_Loop();
 		time_Tick();
+		// //while in menu, check for play_select
+		// int test = !(btn(1) && sw(1));
+		// PORTE = test;
+		// if (btn(1)) {
+		// 	if(play_select) {
+		// 		play_select = 0;
+		// 	} else {
+		// 		play_select = 1;
+		// 	}
+		// }
+		// //shows menu depending on play select
+		// game_ShowMenu(play_select);
+		// if (play_select && btn(1))
+		// {
+		// 	//gan
+		// 	game_Init();
+		// 	 // gameloop
+		// 	while (1)
+		// 	{
+		// 		game_Update();
+		// 		time_Tick();
+		// 		PORTE = adc_GetDial();
+		// 		if(game_Pause()) //pause returns 1 if the exit button (btn1) is pressed while the game is paused
+		// 			break;
+		// 		if (game_Lose())
+		// 			break;
+
+		// 	}
+		// }
+		// if (!play_select && btn(1)) {
+		// 	//loop for Score display
+		// 	while(1) {
+		// 		//ShowScores();
+				
+		// 		if(btn(1)) //btn1 to exit score menu
+		// 			break;
+		// 	}
+
+		// }
+		// disp_Write();
+		// time_Tick();
 	}
 
 	return 0;
 }
-

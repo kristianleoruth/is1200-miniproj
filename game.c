@@ -4,10 +4,9 @@
 #include "pic32mx.h"
 #include "miniproj.h"
 
-#define LEFT_WALL 1
+#define LEFT_WALL 0
 #define RIGHT_WALL 30
-
-
+#define MAX_GAME_HEIGHT 100
 
 void WriteNumber(uint8_t num, uint8_t page, uint8_t col)
 {
@@ -57,125 +56,40 @@ typedef struct Block
 uint8_t ground[32][128];
 
 uint8_t blockSprites[] = {
-	0,
-	1,
-	1,
-	0,
-	0,
-	0,
-	1,
-	0,
-	0,
-	0,
-	1,
-	0,
-	0,
-	0,
-	0,
-	0,
-
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	1,
-	1,
-	1,
-	1,
-
-	0,
-	1,
-	1,
-	0,
-	0,
-	1,
-	0,
-	0,
-	0,
-	1,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-
-	0,
-	0,
-	0,
-	0,
-	0,
-	1,
-	1,
-	0,
-	0,
-	1,
-	1,
-	0,
-	0,
-	0,
-	0,
-	0,
-
-	0,
-	0,
-	1,
-	0,
-	0,
-	1,
-	1,
-	0,
-	0,
-	1,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	1,
-	0,
-	0,
-	1,
-	1,
-	1,
-	0,
-	0,
-	0,
-	0,
-
-	0,
-	1,
-	0,
-	0,
-	0,
-	1,
-	1,
-	0,
-	0,
-	0,
-	1,
-	0,
-	0,
-	0,
-	0,
-	0,
-
+	0,1,1,0,
+	0,0,1,0,
+	0,0,1,0,
+	0,0,0,0,
+	
+	0,0,0,0,
+	0,0,0,0,
+	0,0,0,0,
+	1,1,1,1,
+	
+	0,1,1,0,
+	0,1,0,0,
+	0,1,0,0,
+	0,0,0,0,
+	
+	0,0,0,0,
+	0,1,1,0,
+	0,1,1,0,
+	0,0,0,0,
+	
+	0,0,1,0,
+	0,1,1,0,
+	0,1,0,0,
+	0,0,0,0,
+	
+	0,0,0,0,
+	0,0,1,0,
+	0,1,1,1,
+	0,0,0,0,
+	
+	0,1,0,0,
+	0,1,1,0,
+	0,0,1,0,
+	0,0,0,0,
 };
 
 Block curBlock;
@@ -192,28 +106,32 @@ int rots = 0;
 int ticksPerFall = 5;
 unsigned int ticks = 0;
 
+typedef enum {
+	Menu,
+	DiffSelect,
+	Scores,
+	GameInit,
+	Game,
+	Pause,
+	GameOver
+} GameState;
+
+GameState gameState = Menu;
+int playSelect = 1;
+int lost = 0;
+uint8_t storedPrevious = 0;
+
 int rand()
 {
-	return (ticks + rots + moves) % 7;
+	return (ticks + rots + moves);
 }
 
 void SpawnBlock()
 {
-	curBlock.shape = rand() % 7;
-	// curBlock.shape = 1;
-	curBlock.rot = 0;
-	curBlock.origin.x = 80;
+	// curBlock.shape = rand() & 0x7;
+	curBlock.shape = rand() % 2;
+	curBlock.origin.x = 100;
 	curBlock.origin.y = 16;
-}
-
-void StoreBlock()
-{
-	storedBlock.shape = curBlock.shape;
-	storedBlock.rot = curBlock.rot;
-	storedBlock.origin.x = 110;
-	storedBlock.origin.y = 4;
-	isBlockStored = 1;
-	spawnNext = 1;
 }
 
 void UseStoredBlock()
@@ -221,6 +139,24 @@ void UseStoredBlock()
 	curBlock.shape = storedBlock.shape;
 	curBlock.rot = storedBlock.rot;
 	isBlockStored = 0;
+}
+
+void StoreBlock()
+{
+	if (storedPrevious) {
+		return;
+	}
+	storedBlock.shape = curBlock.shape;
+	storedBlock.rot = curBlock.rot;
+	storedBlock.origin.x = 110;
+	storedBlock.origin.y = 4;
+	isBlockStored = 1;
+	spawnNext = 1;
+
+	storedPrevious = 1;
+
+	if (isBlockStored)
+		UseStoredBlock();
 }
 
 void ResetDMat()
@@ -286,7 +222,7 @@ void GetShapeSprite(uint8_t s[16], Block block)
 }
 
 /*
-Helper for MoveBlock, stores coordinate and row to check if pixel is the left-/rightmost pixel in the shape
+Helper for GetActivePixels, stores coordinate and row to check if pixel is the left-/rightmost pixel in the shape
 */
 typedef struct _BlockPixel
 {
@@ -335,23 +271,22 @@ void RenderBlock()
 
 void ShowStoredBlock()
 {
-	if (isBlockStored)
-	{
-		int i, j;
-		_BlockPixel activePixels[4];
-		GetActivePixels(activePixels, storedBlock);
+	// if (isBlockStored)
+	// {
+	// 	int i, j;
+	// 	_BlockPixel activePixels[4];
+	// 	GetActivePixels(activePixels, storedBlock);
 
-		for (i = 0; i < 4; i++)
-		{
-			_BlockPixel pxl = activePixels[i];
+	// 	for (i = 0; i < 4; i++)
+	// 	{
+	// 		_BlockPixel pxl = activePixels[i];
 
-			d_mat[pxl.o.y][pxl.o.x] = 1;
-			d_mat[pxl.o.y][pxl.o.x - 1] = 1;
-			d_mat[pxl.o.y + 1][pxl.o.x] = 1;
-			d_mat[pxl.o.y + 1][pxl.o.x - 1] = 1;
-		}
-	}
-	return;
+	// 		d_mat[pxl.o.y][pxl.o.x] = 1;
+	// 		d_mat[pxl.o.y][pxl.o.x - 1] = 1;
+	// 		d_mat[pxl.o.y + 1][pxl.o.x] = 1;
+	// 		d_mat[pxl.o.y + 1][pxl.o.x - 1] = 1;
+	// 	}
+	// }
 }
 
 void RenderGround()
@@ -391,14 +326,20 @@ void UpdateGround()
 	_BlockPixel activePixels[4];
 	GetActivePixels(activePixels, curBlock);
 	int x, y, i;
+	_BlockPixel highest = activePixels[0];
 	for (i = 0; i < 4; i++)
 	{
 		_BlockPixel pxl = activePixels[i];
+		if (pxl.o.x > highest.o.x)
+			highest = pxl;
 		ground[pxl.o.y][pxl.o.x] = 1;
 		ground[pxl.o.y][pxl.o.x - 1] = 1;
 		ground[pxl.o.y + 1][pxl.o.x] = 1;
 		ground[pxl.o.y + 1][pxl.o.x - 1] = 1;
 	}
+
+	if (highest.o.x >= MAX_GAME_HEIGHT)
+		lost = 1;
 
 	int deleteAmt = 0; // Going to be max 4
 	uint8_t r = 255;
@@ -425,10 +366,10 @@ void UpdateGround()
 	if (!deleteAmt)
 		return;
 
-	for (i = 0; i < 3; i++)
+	for (i = 0; i < 6; i++)
 	{
 		int rowFull = 1;
-		x = r + 2 + i * 2;
+		x = r + i * 2;
 		for (y = 0; y < 32; y++)
 		{
 			if (!ground[y][x])
@@ -443,9 +384,10 @@ void UpdateGround()
 		deleteAmt++;
 	}
 
-	WriteNumber(deleteAmt, 0, 15);
+	// deleteAmt /= 2;
 
-	int shamt = deleteAmt * 2;
+	// int shamt = deleteAmt * 2;
+	int shamt = deleteAmt;
 
 	for (x = r + shamt; x < 128; x++)
 	{
@@ -467,6 +409,7 @@ void Fall()
 		}
 		else if (MoveCheckFall() == 0)
 		{
+			storedPrevious = 0;
 			UpdateGround();
 			spawnNext = 1;
 		}
@@ -692,88 +635,95 @@ void InputHandler()
 	{
 		RotateBlock();
 	}
+
 	if (btn(1))
-	{
-		if (isBlockStored && (curBlock.origin.x > 60))
-		{
-			UseStoredBlock();
+		StoreBlock();
+}
+
+// Helper vars for Difficulty Menu
+char diff_offset = 0;
+char diff_currentLetter[2];
+char name[] = {0,0,0,0};
+int diff_index = 0;
+
+void ClearProfile() {
+	int i;
+	for (i = 0; i < 4; i++) {
+		name[i] = 0;
+	}
+	score = 0;
+}
+
+void StoreProfile() {
+	// Check if we should update the high scores
+	// Store score and name
+	ClearProfile();
+}
+
+void DifficultyMenu() {
+	int dialVal = adc_GetDial();
+	PORTE = dialVal;
+	float dialValF = (float)dialVal;
+	dialValF = (dialValF/255.0)*128;
+	dialVal = (int)dialValF;
+	
+	//display the currently chosen difficulty
+	disp_Text("DIFFICULTY", 2, 25);
+	int i, j;
+	for (i = 24; i < 32; i++) {
+		for(j = 0; j < 128; j++) {
+			if(j < dialVal) {
+				d_mat[i][j] = 1;
+			} else {
+				d_mat[i][j] = 0;
+			}
+			
 		}
-		else if (!(isBlockStored))
-		{
-			StoreBlock();
-		}
+	}
+
+	//offset calculation for currentLetter
+	if(btn(2))
+		diff_offset++;
+	if(btn(3))
+		diff_offset--;
+
+	if(diff_offset > 25) {
+		diff_offset = 0;
+	} 
+	if(diff_offset < 0) {
+		diff_offset = 25;
+	}
+	
+
+	diff_currentLetter[0] = 0x41 + diff_offset;
+	
+	//write Letter to name
+	if(btn(1) && diff_index < 3) {
+		name[diff_index] = diff_currentLetter[0];
+		diff_index++;
+	}	
+	
+	//display currentLetter and name
+	disp_Text("NAME", 0, 0);
+	disp_Text(diff_currentLetter, 0, 60);
+	disp_Text(name, 0, 90);
+	disp_Write();
+	time_Tick();
+
+	if(btn(4) && name[4] != 0x00) {
+		diff_offset = 0;
+		diff_currentLetter[2];
+		name[0] = 0x00;
+		diff_index = 0;
+		gameState = GameInit;
 	}
 }
 
-
-
-void game_Init()
+void Init()
 {
-	ResetDMat();
-	char offset = 0;
-	char currentLetter[2];
-	char name[4];
-	name[0] = 0x00;
-	int index = 0;
-	//loop for difficulty and game initialization
-	while(1) {
-		int dialVal = adc_GetDial();
-		PORTE = dialVal;
-		float dialValF = (float)dialVal;
-		dialValF = (dialValF/255.0)*128;
-		dialVal = (int)dialValF;
-		
-		//display the currently chosen difficulty
-		disp_Text("DIFFICULTY", 2, 25);
-		int i, j;
-		for (i = 24; i < 32; i++) {
-			for(j = 0; j < 128; j++) {
-				if(j < dialVal) {
-					d_mat[i][j] = 1;
-				} else {
-					d_mat[i][j] = 0;
-				}
-				
-			}
-		}
-
-		//offset calculation for currentLetter
-		if(btn(2))
-			offset++;
-		if(btn(3))
-			offset--;
-
-		if(offset > 25) {
-			offset = 0;
-		} 
-		if(offset < 0) {
-			offset = 25;
-		}
-		
-
-		currentLetter[0] = 0x41 + offset;
-		
-		//write Letter to name
-		if(btn(1) && index < 3) {
-			name[index] = currentLetter[0];
-			index++;
-		}	
-		
-		//display currentLetter and name
-		disp_Text("NAME", 0, 0);
-		disp_Text(currentLetter, 0, 60);
-		disp_Text(name, 0, 90);
-		disp_Write();
-		time_Tick();
-
-		if(btn(4) && name[4] != 0x00)
-			break;
-		
-	}
-
-	
 	score = 0;
 	isBlockStored = 0;
+	lost = 0;
 	int i, j;
 	for (i = 0; i < 32; i++)
 	{
@@ -783,6 +733,7 @@ void game_Init()
 		}
 	}
 	SpawnBlock();
+	gameState = Game;
 
 	// for (i = 0; i < 30; i++) {
 	// 	for (j = 0; j < 8; j++) {
@@ -796,68 +747,99 @@ int ln(int x)
 	return (x - 1) - ((x - 1) ^ 2) / 2 + ((x - 1) ^ 3) / 3 - ((x - 1) ^ 4) / 4 + ((x - 1) ^ 5) / 5;
 }
 
+void LoseMenu() {
+	// Display name and score
+	StoreProfile();
+	return;
+}
+
+void ShowMenu(int playSelect)
+{
+	if(playSelect) {
+			ResetDMat();
+			disp_Text("O", 0, 30);
+			disp_Text("PLAY", 0, 50);
+			disp_Text("SCORES", 3, 50);
+
+			if (btn(1))
+				gameState = DiffSelect;
+		}
+		else {
+			ResetDMat();
+			disp_Text("O", 3, 30);
+			disp_Text("PLAY", 0, 50);
+			disp_Text("SCORES", 3, 50);
+
+			if (btn(1))
+				gameState = Scores;
+		}
+}
 
 void PauseMenu() {
+	if (!sw(1)) {
+		gameState = Game;
+		return;
+	}
+	if (btn(1)) {
+		StoreProfile();
+		gameState = Menu;
+		return;
+	}
+	disp_Text("PAUSED", 0, 44);
+	disp_Text("NAME", 1, 30);
+	disp_Text("SCORE", 2, 30);
 	//for later implementation of pause menu graphics
 	return;
 }
 
-//if the game is paused, the loop inside this method is running
-int Pause(){
-		while (1)
-		{
-			PauseMenu();
-			disp_Write();
-			if (!(sw(1))) 
-				return 0;
-			if(btn(1)) 
-				return 1;
-				
-		}
-}
-void game_Update()
-{
-	if(sw(1))
-		Pause();
-	ticks++;
-	ResetDMat();
-	// disp_VerticalText("123", 100, 0);
+void GameUpdate() {
 	if (spawnNext)
-	{
-		SpawnBlock();
-		spawnNext = 0;
-	}
+		{
+			SpawnBlock();
+			spawnNext = 0;
+		}
+		Fall();
+		InputHandler();
+		RenderBlock();
+		ShowStoredBlock();
+		RenderGround();
+		// WriteNumber(isBlockStored, 0, 50);
 
-	Fall();
-	InputHandler();
-	RenderBlock();
-	ShowStoredBlock();
-	RenderGround();
+		if (sw(1))
+			gameState = Pause;
+		if (lost)
+			gameState = GameOver;
+}
 
-	/* 	WriteNumber(curBlock.origin.y, 0, 30);
-		WriteNumber(curBlock.origin.x, 0, 60); */
-	// WriteNumber(score, 0, 90);
-	// WriteNumber(isBlockStored, 0, 60);
-	// WriteNumber(adc_GetDial(), 3, 30);
+void game_Loop()
+{
+	ResetDMat();
+	// switch (gameState)
+	// {
+	// 	case Menu:
+	// 		ShowMenu(playSelect);
+	// 		if (btn(2))
+	// 			playSelect = !playSelect;	
+	// 		break;
+	// 	case DiffSelect:
+	// 		DifficultyMenu();
+	// 		break;
+	// 	case GameInit:
+	// 		Init();
+	// 		break;
+	// 	case Game:
+	// 		GameUpdate();
+	// 		break;
+	// 	case Pause:
+	// 		PauseMenu();
+	// 		break;
+	// 	case GameOver:
+	// 		LoseMenu();
+	// 		break;
+	// 	default:
+	// 		break;
+	// }
+	GameUpdate();
+	ticks++;
 	disp_Write();
 }
-
-//showMenu is being called from the main method
-void ShowMenu(int play_select)
-{
-
-	
-	if(play_select) {
-		ResetDMat();
-		disp_Text("O", 0, 30);
-		disp_Text("PLAY", 0, 50);
-		disp_Text("SCORES", 3, 50);
-	}
-	else {
-		ResetDMat();
-		disp_Text("O", 3, 30);
-		disp_Text("PLAY", 0, 50);
-		disp_Text("SCORES", 3, 50);
-	}
-}
-
