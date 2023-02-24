@@ -57,12 +57,13 @@ void adc_Init() {
 int adc_GetDial() {
     AD1CON1SET = 0x8000; //turn adc-module on
     AD1CON1SET = 0x0002; //tell SAH to start sampling 
-    time_Timer3(10000); //100ms delay
+    time_Timer3(1000); //100ms delay
     AD1CON1CLR = 0x0002;
     while(!(AD1CON1&0x0001));
     AD1CON1 = 0;
-    return ADC1BUF0;
-}
+    return ADC1BUF0>>2;
+    
+    }
 
 int btn(int select) {
     switch (select) {
@@ -79,30 +80,17 @@ int btn(int select) {
     }
 }
 
-int sw1 () {
-    if (PORTD & 0x100) {
-        return 1;
+int sw (int select) {
+    switch(select) {
+        case 1:
+            return PORTD &0x100;
+        case 2:
+            return PORTD & 0x200;
+        case 3: 
+            return PORTD & 0x400;
+        case 4:
+            return PORTD & 0x800;
+        default:
+            return 0;
     }
-    return 0;
-}
-
-int sw2 () {
-    if (PORTD & 0x200) {
-        return 1;
-    }
-    return 0;
-}
-
-int sw3 () {
-    if (PORTD & 0x400) {
-        return 1;
-    }
-    return 0;
-}
-
-int sw4 () {
-    if (PORTD & 0x800) {
-        return 1;
-    }
-    return 0;
 }

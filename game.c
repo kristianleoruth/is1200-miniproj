@@ -7,6 +7,8 @@
 #define LEFT_WALL 1
 #define RIGHT_WALL 30
 
+
+
 void WriteNumber(uint8_t num, uint8_t page, uint8_t col)
 {
 	char digits[4];
@@ -55,40 +57,124 @@ typedef struct Block
 uint8_t ground[32][128];
 
 uint8_t blockSprites[] = {
-	0, 1, 1, 0,
-	0, 0, 1, 0,
-	0, 0, 1, 0,
-	0, 0, 0, 0,
+	0,
+	1,
+	1,
+	0,
+	0,
+	0,
+	1,
+	0,
+	0,
+	0,
+	1,
+	0,
+	0,
+	0,
+	0,
+	0,
 
-	0, 0, 0, 0,
-	0, 0, 0, 0,
-	0, 0, 0, 0,
-	1, 1, 1, 1,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	1,
+	1,
+	1,
+	1,
 
-	0, 1, 1, 0,
-	0, 1, 0, 0,
-	0, 1, 0, 0,
-	0, 0, 0, 0,
+	0,
+	1,
+	1,
+	0,
+	0,
+	1,
+	0,
+	0,
+	0,
+	1,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
 
-	0, 0, 0, 0,
-	0, 1, 1, 0,
-	0, 1, 1, 0,
-	0, 0, 0, 0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	1,
+	1,
+	0,
+	0,
+	1,
+	1,
+	0,
+	0,
+	0,
+	0,
+	0,
 
-	0, 0, 1, 0,
-	0, 1, 1, 0,
-	0, 1, 0, 0,
-	0, 0, 0, 0,
+	0,
+	0,
+	1,
+	0,
+	0,
+	1,
+	1,
+	0,
+	0,
+	1,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
 
-	0, 0, 0, 0,
-	0, 0, 1, 0,
-	0, 1, 1, 1,
-	0, 0, 0, 0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	1,
+	0,
+	0,
+	1,
+	1,
+	1,
+	0,
+	0,
+	0,
+	0,
 
-	0, 1, 0, 0,
-	0, 1, 1, 0,
-	0, 0, 1, 0,
-	0, 0, 0, 0,
+	0,
+	1,
+	0,
+	0,
+	0,
+	1,
+	1,
+	0,
+	0,
+	0,
+	1,
+	0,
+	0,
+	0,
+	0,
+	0,
 
 };
 
@@ -106,7 +192,8 @@ int rots = 0;
 int ticksPerFall = 5;
 unsigned int ticks = 0;
 
-int rand() {
+int rand()
+{
 	return (ticks + rots + moves) % 7;
 }
 
@@ -129,7 +216,8 @@ void StoreBlock()
 	spawnNext = 1;
 }
 
-void UseStoredBlock() {
+void UseStoredBlock()
+{
 	curBlock.shape = storedBlock.shape;
 	curBlock.rot = storedBlock.rot;
 	isBlockStored = 0;
@@ -315,10 +403,13 @@ void UpdateGround()
 	int deleteAmt = 0; // Going to be max 4
 	uint8_t r = 255;
 
-	for (x = 0; x < 128; x += 2) {
+	for (x = 0; x < 128; x += 2)
+	{
 		int rowFull = 1;
-		for (y = 0; y < 32; y += 2) {
-			if (!ground[y][x]) {
+		for (y = 0; y < 32; y += 2)
+		{
+			if (!ground[y][x])
+			{
 				rowFull = 0;
 				break;
 			}
@@ -334,11 +425,14 @@ void UpdateGround()
 	if (!deleteAmt)
 		return;
 
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < 3; i++)
+	{
 		int rowFull = 1;
-		x = r + 2 + i*2;
-		for (y = 0; y < 32; y++) {
-			if (!ground[y][x]) {
+		x = r + 2 + i * 2;
+		for (y = 0; y < 32; y++)
+		{
+			if (!ground[y][x])
+			{
 				rowFull = 0;
 				break;
 			}
@@ -353,8 +447,10 @@ void UpdateGround()
 
 	int shamt = deleteAmt * 2;
 
-	for (x = r + shamt; x < 128; x++) {
-		for (y = 0; y < 32; y++) {
+	for (x = r + shamt; x < 128; x++)
+	{
+		for (y = 0; y < 32; y++)
+		{
 			ground[y][x - shamt] = ground[y][x];
 		}
 	}
@@ -362,7 +458,7 @@ void UpdateGround()
 
 void Fall()
 {
-	ticksPerFall = 500/adc_GetDial();
+	ticksPerFall = 500 / adc_GetDial();
 	if (ticks % ticksPerFall == 0)
 	{
 		if (MoveCheckFall() == 1)
@@ -575,9 +671,9 @@ void MoveBlock(int x)
 		return;
 
 	if (x > 0)
-		curBlock.origin.y += 1;
+		curBlock.origin.y += 2;
 	if (x < 0)
-		curBlock.origin.y -= 1;
+		curBlock.origin.y -= 2;
 	moves++;
 }
 
@@ -609,9 +705,75 @@ void InputHandler()
 	}
 }
 
+
+
 void game_Init()
 {
-	diff = 1;
+	ResetDMat();
+	char offset = 0;
+	char currentLetter[2];
+	char name[4];
+	name[0] = 0x00;
+	int index = 0;
+	//loop for difficulty and game initialization
+	while(1) {
+		int dialVal = adc_GetDial();
+		PORTE = dialVal;
+		float dialValF = (float)dialVal;
+		dialValF = (dialValF/255.0)*128;
+		dialVal = (int)dialValF;
+		
+		//display the currently chosen difficulty
+		disp_Text("DIFFICULTY", 2, 25);
+		int i, j;
+		for (i = 24; i < 32; i++) {
+			for(j = 0; j < 128; j++) {
+				if(j < dialVal) {
+					d_mat[i][j] = 1;
+				} else {
+					d_mat[i][j] = 0;
+				}
+				
+			}
+		}
+
+		//offset calculation for currentLetter
+		if(btn(2))
+			offset++;
+		if(btn(3))
+			offset--;
+
+		if(offset > 25) {
+			offset = 0;
+		} 
+		if(offset < 0) {
+			offset = 25;
+		}
+		
+
+		currentLetter[0] = 0x41 + offset;
+		
+		//write Letter to name
+		if(btn(1) && index < 3) {
+			name[index] = currentLetter[0];
+			index++;
+		}	
+		
+		//display currentLetter and name
+		disp_Text("NAME", 0, 0);
+		disp_Text(currentLetter, 0, 60);
+		disp_Text(name, 0, 90);
+		disp_Write();
+		time_Tick();
+
+		if(btn(4) && name[4] != 0x00)
+			break;
+		
+	}
+
+	
+	score = 0;
+	isBlockStored = 0;
 	int i, j;
 	for (i = 0; i < 32; i++)
 	{
@@ -620,6 +782,7 @@ void game_Init()
 			ground[i][j] = 0;
 		}
 	}
+	SpawnBlock();
 
 	// for (i = 0; i < 30; i++) {
 	// 	for (j = 0; j < 8; j++) {
@@ -633,8 +796,29 @@ int ln(int x)
 	return (x - 1) - ((x - 1) ^ 2) / 2 + ((x - 1) ^ 3) / 3 - ((x - 1) ^ 4) / 4 + ((x - 1) ^ 5) / 5;
 }
 
+
+void PauseMenu() {
+	//for later implementation of pause menu graphics
+	return;
+}
+
+//if the game is paused, the loop inside this method is running
+int Pause(){
+		while (1)
+		{
+			PauseMenu();
+			disp_Write();
+			if (!(sw(1))) 
+				return 0;
+			if(btn(1)) 
+				return 1;
+				
+		}
+}
 void game_Update()
 {
+	if(sw(1))
+		Pause();
 	ticks++;
 	ResetDMat();
 	// disp_VerticalText("123", 100, 0);
@@ -654,6 +838,26 @@ void game_Update()
 		WriteNumber(curBlock.origin.x, 0, 60); */
 	// WriteNumber(score, 0, 90);
 	// WriteNumber(isBlockStored, 0, 60);
-	//WriteNumber(adc_GetDial(), 3, 30);
+	// WriteNumber(adc_GetDial(), 3, 30);
 	disp_Write();
 }
+
+//showMenu is being called from the main method
+void ShowMenu(int play_select)
+{
+
+	
+	if(play_select) {
+		ResetDMat();
+		disp_Text("O", 0, 30);
+		disp_Text("PLAY", 0, 50);
+		disp_Text("SCORES", 3, 50);
+	}
+	else {
+		ResetDMat();
+		disp_Text("O", 3, 30);
+		disp_Text("PLAY", 0, 50);
+		disp_Text("SCORES", 3, 50);
+	}
+}
+
