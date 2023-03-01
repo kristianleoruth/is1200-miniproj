@@ -8,6 +8,8 @@
 #define RIGHT_WALL 30
 #define MAX_GAME_HEIGHT 100
 #define TETRIS_SCORE 2
+#define MAX_SPEED 1
+#define MIN_SPEED 6
 
 /* 
 Todo: 
@@ -81,12 +83,12 @@ uint8_t spawnNext = 1;
 int score = 0;
 int diff;
 int isBlockStored = 0;
-int MAX_SPEED = 1;
 
 int moves = 0;
 int rots = 0;
 
-int menuDelay = 5;
+int movDelay = 3;
+int menuDelay = 3;
 
 Profile highScores[3];
 
@@ -158,11 +160,7 @@ void SpawnBlock()
 	nextBlock.shape = rand() % 7;
 	nextBlock.origin.x = 110;
 	nextBlock.origin.y = 26;
-
 }
-
-
-
 
 void StoreBlock()
 {
@@ -172,7 +170,7 @@ void StoreBlock()
 	if (isBlockStored) {
 		Block t = curBlock;
 		t.origin.x = 110;
-		t.origin.y = 4;
+		t.origin.y = 14;
 		t.rot = 0;
 		
 		curBlock = storedBlock;
@@ -182,7 +180,7 @@ void StoreBlock()
 		storedBlock = curBlock;
 		storedBlock.rot = 0;
 		storedBlock.origin.x = 110;
-		storedBlock.origin.y = 4;
+		storedBlock.origin.y = 14;
 		spawnNext = 1;
 		isBlockStored = 1;
 	}
@@ -320,6 +318,26 @@ void ShowStoredBlock()
 	{
 		_BlockPixel pxl = activePixels[i];
 		int _x, _y;
+		_y = pxl.o.y - storedBlock.origin.y + 4;
+		_x = pxl.o.x - storedBlock.origin.x + 110;
+
+		d_mat[_y][_x] = 1;
+		d_mat[_y][_x - 1] = 1;
+		d_mat[_y + 1][_x] = 1;
+		d_mat[_y + 1][_x - 1] = 1;
+	}
+}
+
+void ShowNextBlock()
+{
+	int i, j;
+	_BlockPixel activePixels[4];
+	GetActivePixels(activePixels, nextBlock);
+
+	for (i = 0; i < 4; i++)
+	{
+		_BlockPixel pxl = activePixels[i];
+		int _x, _y;
 		_y = pxl.o.y;
 		_x = pxl.o.x;
 
@@ -421,35 +439,46 @@ void UpdateGround() {
 
 	// 4
 	score += c / 2;
-	if(ticksPerFall > MAX_SPEED) {
-		ticksPerFall -= 1;
-	}
-	
+	ticksPerFall -= c/2;
+	if (ticksPerFall < MAX_SPEED)
+		ticksPerFall = MAX_SPEED;
 	if (c == 8)
 		score += TETRIS_SCORE;
 }
 
 void Fall()
 {
-	if (ticks % ticksPerFall == 0)
+	// int dialVal = adc_GetDial();
+
+	// float percentage = 1 - dialVal/255.0;
+	// ticksPerFall = percentage * MIN_SPEED;
+	// int p = (1 - percentage) * 100;
+	// WriteNumber(p, 1, 10);
+	
+	// if (ticksPerFall < MAX_SPEED)
+	// 	ticksPerFall = MAX_SPEED;
+	// if (ticksPerFall > MIN_SPEED)
+	// 	ticksPerFall = MIN_SPEED;
+
+	if (ticks % ticksPerFall)
+		return;
+	
+	if (MoveCheckFall())
 	{
-		if (MoveCheckFall())
-		{
-			curBlock.origin.x -= 1;
-		}
-		else
-		{
-			storedPrevious = 0;
-			UpdateGround();
-			spawnNext = 1;
-		}
+		curBlock.origin.x -= 1;
+	}
+	else
+	{
+		storedPrevious = 0;
+		UpdateGround();
+		spawnNext = 1;
 	}
 }
 
 void RotateBlock()
 {
-	// if (!(ticks % rotDelay)) 
-	// 	return;
+	if (ticks % movDelay) 
+		return;
 	/* Check if rotation will intersect with a wall or ground
 	1. Copy curBlock, change rotation of the duplicate
 	2. Get active pixels of desired rotation
@@ -591,7 +620,7 @@ int MoveCheck(int x)
 				break;
 			}
 
-			if (ground[pxl.o.y - 1][pxl.o.x])
+			if (ground[pxl.o.y - 1][pxl.o.x] || ground[pxl.o.y - 1][pxl.o.x - 1])
 			{
 				canMoveLeft = 0;
 				break;
@@ -629,7 +658,7 @@ int MoveCheck(int x)
 				break;
 			}
 
-			if (ground[pxl.o.y + 2][pxl.o.x])
+			if (ground[pxl.o.y + 2][pxl.o.x] || ground[pxl.o.y + 2][pxl.o.x - 1])
 			{
 				canMoveRight = 0;
 				break;
@@ -641,11 +670,15 @@ int MoveCheck(int x)
 		return 0;
 	}
 }
+
 /*
 Param: integer less than or more than 0, positive means move right, negative is move left
 */
 void MoveBlock(int x)
 {
+	if (ticks % movDelay)
+		return;
+
 	if (!MoveCheck(x))
 		return;
 
@@ -696,18 +729,19 @@ void ClearProfile() {
 void StoreProfile() {
 	// Check if we should update the high scores
 	// Store score and name
-	int i;
-	for (i = 2; i >= 0; i--)
-	{
-		if (highScores[i].score > score) {
-			i++;
-			break;
-		}
-	}
-	if (i == 3) {
-		ClearProfile();
-		return;
-	}
+	int i = 0;
+	// for (i = 2; i >= 0; i--)
+	// {
+	// 	if (highScores[i].score > score) {
+	// 		i++;
+	// 		break;
+	// 	}
+	// }
+	// if (i == 3) {
+	// 	ClearProfile();
+	// 	return;
+	// }
+
 	Profile p;
 	for (i = 0; i < 4; i++) {
 		p.name[i] = name[i];
@@ -720,11 +754,23 @@ void StoreProfile() {
 void DifficultyMenu() {
 	int dialVal = adc_GetDial();
 	PORTE = dialVal;
+
+	float percentage = 1 - dialVal/255.0;
 	float dialValF = (float)dialVal;
 	dialValF = (dialValF/255.0)*128;
 	dialVal = (int)dialValF;
+
+	ticksPerFall = percentage * MIN_SPEED;
+	int p = (1 - percentage) * 100;
+	WriteNumber(p, 1, 10);
 	
-	
+	if (ticksPerFall < MAX_SPEED)
+		ticksPerFall = MAX_SPEED;
+	if (ticksPerFall > MIN_SPEED)
+		ticksPerFall = MIN_SPEED;
+
+	PORTE = ticksPerFall;
+
 	//display the currently chosen difficulty
 	disp_Text("DIFFICULTY", 2, 25);
 	int i, j;
@@ -783,8 +829,8 @@ void DifficultyMenu() {
 void Init()
 {
 	nextBlock.shape = rand() % 7;
-	nextBlock.origin.x = 100;
-	nextBlock.origin.y = 18;
+	nextBlock.origin.x = 110;
+	nextBlock.origin.y = 26;
 
 	score = 0;
 	isBlockStored = 0;
@@ -811,26 +857,6 @@ void Init()
 int ln(int x)
 {
 	return (x - 1) - ((x - 1) ^ 2) / 2 + ((x - 1) ^ 3) / 3 - ((x - 1) ^ 4) / 4 + ((x - 1) ^ 5) / 5;
-}
-
-void ShowNextBlock()
-{
-	int i, j;
-	_BlockPixel activePixels[4];
-	GetActivePixels(activePixels, nextBlock);
-
-	for (i = 0; i < 4; i++)
-	{
-		_BlockPixel pxl = activePixels[i];
-		int _x, _y;
-		_y = pxl.o.y;
-		_x = pxl.o.x;
-
-		d_mat[_y][_x] = 1;
-		d_mat[_y][_x - 1] = 1;
-		d_mat[_y + 1][_x] = 1;
-		d_mat[_y + 1][_x - 1] = 1;
-	}
 }
 
 void LoseMenu() {
@@ -904,25 +930,24 @@ void ScoresMenu() {
 		return;
 	}
 
-	if (!highScores[0].score) {
-		disp_Text("NO SCORE", 1, 40);
-		disp_Text("AVAILABLE", 2, 32);
-		disp_Text("BTN1 RETURN", 3, 20);
-		return;
-	}
+	// if (!highScores[0].score) {
+	// 	disp_Text("NO SCORE", 1, 40);
+	// 	disp_Text("AVAILABLE", 2, 32);
+	// 	disp_Text("BTN1 RETURN", 3, 20);
+	// 	return;
+	// }
 
 	disp_Text("SCORES", 0, 40);
 	int i;
 	for (i = 0; i < 3; i++) {
-		disp_Text(highScores[i].name, i, 30);
-		WriteNumber(highScores[i].score, i, 80);
+		disp_Text(highScores[i].name, i + 1, 30);
+		WriteNumber(highScores[i].score, i + 1, 80);
 	}
 }
 
 void GameUpdate() {
 	if (lost)
 		gameState = GameOver;
-	ticks++;
 	ResetDMat();
 	if (spawnNext)
 	{
@@ -942,11 +967,13 @@ void game_Loop()
 {
 	ResetDMat();
 	ticks++;
+	if (ticks == 0xffffffff)
+		ticks = 0;
 	switch (gameState)
 	{
 		case Menu:
 			ShowMenu(playSelect);
-			if (btn(2))
+			if (btn(2) && !(ticks % menuDelay))
 				playSelect = !playSelect;	
 			break;
 		case DiffSelect:
@@ -959,6 +986,7 @@ void game_Loop()
 			Init();
 			break;
 		case Game:
+			PORTE = ticksPerFall;
 			GameUpdate();
 			break;
 		case Pause:

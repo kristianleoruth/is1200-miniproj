@@ -414,6 +414,7 @@ void spi_PowerOnDisplay(void)
 	SPI_POWER_ON_VBAT;
 	time_Timer3(100000);
 
+/* This part was taken from mipslabfunc.c */
 	spi_send_recv(0xAF);
 
 	spi_send_recv(0xA1);
@@ -421,19 +422,21 @@ void spi_PowerOnDisplay(void)
 	
 	spi_send_recv(0xDA);
 	spi_send_recv(0x20);
+/* ========= End of taken part ========= */
 
 	// spi_send_recv(0x2E); // Deactivate Scroll
 
 	spi_send_recv(0x20); // Horizontal Address Mode
 	spi_send_recv(0x00);
 
+/* This part was taken from mipslabfunc.c */
 	spi_send_recv(0x81);
 	spi_send_recv(0xff);
 
 	spi_send_recv(0x22);
 	spi_send_recv(0x0);
 	spi_send_recv(0x3);
-
+/* ========= End of taken part ========= */
 	// spi_send_recv(0x21); // Set Column Start-End Address
 	// spi_send_recv(0x00);
 	// spi_send_recv(0x7f);

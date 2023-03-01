@@ -2,7 +2,7 @@
 #include <pic32mx.h>
 #include "miniproj.h"
 
-int cspt = 5; // centiseconds per tick (100 = 1s)
+int cspt = 2; // centiseconds per tick (100 = 1s)
 
 /* 
 time is in microseconds (us)
