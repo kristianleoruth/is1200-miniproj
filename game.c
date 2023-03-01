@@ -81,6 +81,7 @@ uint8_t spawnNext = 1;
 int score = 0;
 int diff;
 int isBlockStored = 0;
+int MAX_SPEED = 1;
 
 int moves = 0;
 int rots = 0;
@@ -149,11 +150,19 @@ void WriteNumber(uint8_t num, uint8_t page, uint8_t col)
 
 void SpawnBlock()
 {
+	curBlock = nextBlock;
+	curBlock.origin.x = 100;
+	curBlock.origin.y = 16;
+
 	// curBlock.shape = rand() & 0x7;
 	nextBlock.shape = rand() % 7;
-	nextBlock.origin.x = 100;
-	nextBlock.origin.y = 16;
+	nextBlock.origin.x = 110;
+	nextBlock.origin.y = 26;
+
 }
+
+
+
 
 void StoreBlock()
 {
@@ -163,7 +172,7 @@ void StoreBlock()
 	if (isBlockStored) {
 		Block t = curBlock;
 		t.origin.x = 110;
-		t.origin.y = 14;
+		t.origin.y = 4;
 		t.rot = 0;
 		
 		curBlock = storedBlock;
@@ -173,7 +182,7 @@ void StoreBlock()
 		storedBlock = curBlock;
 		storedBlock.rot = 0;
 		storedBlock.origin.x = 110;
-		storedBlock.origin.y = 14;
+		storedBlock.origin.y = 4;
 		spawnNext = 1;
 		isBlockStored = 1;
 	}
@@ -311,8 +320,8 @@ void ShowStoredBlock()
 	{
 		_BlockPixel pxl = activePixels[i];
 		int _x, _y;
-		_y = pxl.o.y - storedBlock.origin.y + 4;
-		_x = pxl.o.x - storedBlock.origin.x + 110;
+		_y = pxl.o.y;
+		_x = pxl.o.x;
 
 		d_mat[_y][_x] = 1;
 		d_mat[_y][_x - 1] = 1;
@@ -412,13 +421,16 @@ void UpdateGround() {
 
 	// 4
 	score += c / 2;
+	if(ticksPerFall > MAX_SPEED) {
+		ticksPerFall -= 1;
+	}
+	
 	if (c == 8)
 		score += TETRIS_SCORE;
 }
 
 void Fall()
 {
-	ticksPerFall = 500 / adc_GetDial();
 	if (ticks % ticksPerFall == 0)
 	{
 		if (MoveCheckFall())
@@ -712,6 +724,7 @@ void DifficultyMenu() {
 	dialValF = (dialValF/255.0)*128;
 	dialVal = (int)dialValF;
 	
+	
 	//display the currently chosen difficulty
 	disp_Text("DIFFICULTY", 2, 25);
 	int i, j;
@@ -769,6 +782,10 @@ void DifficultyMenu() {
 
 void Init()
 {
+	nextBlock.shape = rand() % 7;
+	nextBlock.origin.x = 100;
+	nextBlock.origin.y = 18;
+
 	score = 0;
 	isBlockStored = 0;
 	lost = 0;
@@ -794,6 +811,26 @@ void Init()
 int ln(int x)
 {
 	return (x - 1) - ((x - 1) ^ 2) / 2 + ((x - 1) ^ 3) / 3 - ((x - 1) ^ 4) / 4 + ((x - 1) ^ 5) / 5;
+}
+
+void ShowNextBlock()
+{
+	int i, j;
+	_BlockPixel activePixels[4];
+	GetActivePixels(activePixels, nextBlock);
+
+	for (i = 0; i < 4; i++)
+	{
+		_BlockPixel pxl = activePixels[i];
+		int _x, _y;
+		_y = pxl.o.y;
+		_x = pxl.o.x;
+
+		d_mat[_y][_x] = 1;
+		d_mat[_y][_x - 1] = 1;
+		d_mat[_y + 1][_x] = 1;
+		d_mat[_y + 1][_x - 1] = 1;
+	}
 }
 
 void LoseMenu() {
@@ -897,6 +934,7 @@ void GameUpdate() {
 	InputHandler();
 	RenderBlock();
 	ShowStoredBlock();
+	ShowNextBlock();
 	RenderGround();
 }
 
