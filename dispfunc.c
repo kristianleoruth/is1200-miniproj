@@ -329,6 +329,7 @@ void spi_Config(void)
 	/* == Enable SPI operation by setting the ON bit (SPIxCON<15>) == */
 	SPI2CONSET = 0x8000;
 }
+
 /*
 spi_send_recv:
 
@@ -464,6 +465,13 @@ void CharToArr_h(char c, uint8_t* ca) {
 	int i, ci = (int) c, mult;
 	for (i = 0; i < 48; i++)
 		ca[i] = 0;
+
+	if (c == 0x20) {
+		for (i = 0; i < 48; i++) {
+			ca[i] = 0;
+		}
+		return;
+	}
 
 	if (ci <= 0x39)
 		mult = 26 + (ci - '0');

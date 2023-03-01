@@ -7,6 +7,14 @@
 #define LEFT_WALL 0
 #define RIGHT_WALL 30
 #define MAX_GAME_HEIGHT 100
+#define TETRIS_SCORE 2
+
+/* 
+Todo: 
+1. Store block fix DONE
+2. Rotate block fix (cancel rotation if ground next to curBlock) DONE
+3. Profiles
+*/
 
 typedef struct Coordinate
 {
@@ -21,6 +29,11 @@ typedef struct Block
 	Coordinate origin;
 } Block;
 
+typedef struct Profile {
+	int score;
+	char name[4];
+} Profile;
+
 uint8_t ground[32][128];
 
 uint8_t blockSprites[] = {
@@ -30,9 +43,9 @@ uint8_t blockSprites[] = {
 	0,0,0,0,
 	
 	0,0,0,0,
-	0,0,0,0,
-	0,0,0,0,
 	1,1,1,1,
+	0,0,0,0,
+	0,0,0,0,
 	
 	0,1,1,0,
 	0,1,0,0,
@@ -62,6 +75,7 @@ uint8_t blockSprites[] = {
 
 Block curBlock;
 Block storedBlock;
+Block nextBlock;
 
 uint8_t spawnNext = 1;
 int score = 0;
@@ -70,6 +84,21 @@ int isBlockStored = 0;
 
 int moves = 0;
 int rots = 0;
+
+int menuDelay = 5;
+
+Profile highScores[3];
+
+/* 
+moveAmt: Change to 1 for pixel by pixel movement, or 2 for the game to work correctly without unfillable holes
+This variable allows us to fulfill the advanced project graphical requirement, according to Marco Chiesa
+
+"The 2-by-2 pixel movement is OK as long as either:
+ 1) there is something else controlled by the user that moves in the x-y direction 1-by-1.
+ 2) you can decide the granularity of the game to be 1-by-1 (where you have some holes) or 2-by-2."
+*/
+int moveAmt = 2; 
+// int rotDelay = 2;
 
 int ticksPerFall = 5;
 unsigned int ticks = 0;
@@ -100,28 +129,20 @@ void WriteNumber(uint8_t num, uint8_t page, uint8_t col)
 	digits[3] = 0xfe;
 
 	int i, j = 0;
-	for (i = 0; i < 3; i++)
-	{
-		if (num == 0)
-		{
-			digits[i] = 0xff;
-			digits[3] = 0xff;
-			break;
-		}
-		digits[i] = (char)(num % 10 + 0x30); // Store each digit, reverse order
+	for (i = 0; i < 3; i++) {
+		digits[i] = (char) (num % 10 + 0x30);
 		num /= 10;
+		if (!num) {
+			digits[i + 1] = 0xff;
+			digits[3] = 0xff;
+		}
 	}
-
-	if (digits[3] == 0xff)
-		i--;
-
-	while (i >= 0)
-	{
+	i--;
+	while (i >= 0) {
 		char str[2];
-		str[0] = digits[i];
-		str[1] = 0x0;
+		str[0] = digits[i--];
+		str[1] = 0x00;
 		disp_Text(str, page, col + j * 8);
-		i--;
 		j++;
 	}
 }
@@ -129,34 +150,35 @@ void WriteNumber(uint8_t num, uint8_t page, uint8_t col)
 void SpawnBlock()
 {
 	// curBlock.shape = rand() & 0x7;
-	curBlock.shape = rand() % 7;
-	curBlock.origin.x = 100;
-	curBlock.origin.y = 16;
-}
-
-void UseStoredBlock()
-{
-	curBlock.shape = storedBlock.shape;
-	curBlock.rot = storedBlock.rot;
-	isBlockStored = 0;
+	nextBlock.shape = rand() % 7;
+	nextBlock.origin.x = 100;
+	nextBlock.origin.y = 16;
 }
 
 void StoreBlock()
 {
-	if (storedPrevious) {
+	if (storedPrevious)
 		return;
+	
+	if (isBlockStored) {
+		Block t = curBlock;
+		t.origin.x = 110;
+		t.origin.y = 14;
+		t.rot = 0;
+		
+		curBlock = storedBlock;
+		storedBlock = t;
 	}
-	storedBlock.shape = curBlock.shape;
-	storedBlock.rot = curBlock.rot;
-	storedBlock.origin.x = 110;
-	storedBlock.origin.y = 4;
-	isBlockStored = 1;
-	spawnNext = 1;
+	else {
+		storedBlock = curBlock;
+		storedBlock.rot = 0;
+		storedBlock.origin.x = 110;
+		storedBlock.origin.y = 14;
+		spawnNext = 1;
+		isBlockStored = 1;
+	}
 
 	storedPrevious = 1;
-
-	if (isBlockStored)
-		UseStoredBlock();
 }
 
 void ResetDMat()
@@ -271,22 +293,32 @@ void RenderBlock()
 
 void ShowStoredBlock()
 {
-	// if (isBlockStored)
-	// {
-	// 	int i, j;
-	// 	_BlockPixel activePixels[4];
-	// 	GetActivePixels(activePixels, storedBlock);
+	if (!isBlockStored)
+		return;
 
-	// 	for (i = 0; i < 4; i++)
-	// 	{
-	// 		_BlockPixel pxl = activePixels[i];
+	int i, j;
+	_BlockPixel activePixels[4];
+	GetActivePixels(activePixels, storedBlock);
 
-	// 		d_mat[pxl.o.y][pxl.o.x] = 1;
-	// 		d_mat[pxl.o.y][pxl.o.x - 1] = 1;
-	// 		d_mat[pxl.o.y + 1][pxl.o.x] = 1;
-	// 		d_mat[pxl.o.y + 1][pxl.o.x - 1] = 1;
-	// 	}
-	// }
+	int leftb = 2, rightb = 11, lowb = 108, upb = 117;
+	for (i = 0, j = 0; i < 9; i++, j++) {
+		d_mat[i + leftb][upb] = 1;
+		d_mat[i + leftb][lowb] = 1;
+		d_mat[leftb][lowb + j] = 1;
+		d_mat[rightb][lowb + j] = 1;
+	}
+	for (i = 0; i < 4; i++)
+	{
+		_BlockPixel pxl = activePixels[i];
+		int _x, _y;
+		_y = pxl.o.y - storedBlock.origin.y + 4;
+		_x = pxl.o.x - storedBlock.origin.x + 110;
+
+		d_mat[_y][_x] = 1;
+		d_mat[_y][_x - 1] = 1;
+		d_mat[_y + 1][_x] = 1;
+		d_mat[_y + 1][_x - 1] = 1;
+	}
 }
 
 void RenderGround()
@@ -303,7 +335,6 @@ void RenderGround()
 
 int MoveCheckFall()
 {
-
 	Block desired = curBlock;
 	desired.origin.x = curBlock.origin.x - 1;
 	_BlockPixel activePixels[4];
@@ -321,82 +352,68 @@ int MoveCheckFall()
 	return 1;
 }
 
-void UpdateGround()
-{
+void UpdateGround() {
+	/*
+	1. Write block to ground array
+		- Check highest pixel for game loss condition
+	2. Check ground for full rows (count and store row#)
+	3. Loop over stored rows and shift higher rows into them
+	4. Calc score
+	*/
+	// 1
 	_BlockPixel activePixels[4];
 	GetActivePixels(activePixels, curBlock);
-	int x, y, i;
-	_BlockPixel highest = activePixels[0];
-	for (i = 0; i < 4; i++)
-	{
+	int i, j;
+	_BlockPixel highestPxl = activePixels[0];
+	for (i = 0; i < 4; i++) {
 		_BlockPixel pxl = activePixels[i];
-		if (pxl.o.x > highest.o.x)
-			highest = pxl;
+		if (pxl.o.x > highestPxl.o.x)
+			highestPxl = pxl;
 		ground[pxl.o.y][pxl.o.x] = 1;
 		ground[pxl.o.y][pxl.o.x - 1] = 1;
 		ground[pxl.o.y + 1][pxl.o.x] = 1;
 		ground[pxl.o.y + 1][pxl.o.x - 1] = 1;
 	}
 
-	if (highest.o.x >= MAX_GAME_HEIGHT)
-		lost = 1;
-
-	int deleteAmt = 0; // Going to be max 4
-	uint8_t r = 255;
-
-	for (x = 0; x < 128; x += 2)
-	{
-		int rowFull = 1;
-		for (y = 0; y < 32; y += 2)
-		{
-			if (!ground[y][x])
-			{
-				rowFull = 0;
+	// 2
+	// int _rows[8];
+	int c = 0, r = 0;
+	for (i = 0; i < 128; i++) {
+		int full = 1;
+		for (j = 0; j < 32; j++) {
+			if (!ground[j][i]) {
+				full = 0;
 				break;
 			}
 		}
-		if (!rowFull)
+		if (!full)
 			continue;
-
-		r = x;
-		deleteAmt = 1;
-		break;
+		if (!c)
+			r = i;
+		c++;
+		// _rows[c++] = i;
 	}
 
-	if (!deleteAmt)
+	// Check exit and loss condition
+	if (!c) {
+		if (highestPxl.o.x >= MAX_GAME_HEIGHT)
+			lost = 1;
 		return;
-
-	for (i = 0; i < 6; i++)
-	{
-		int rowFull = 1;
-		x = r + i * 2;
-		for (y = 0; y < 32; y++)
-		{
-			if (!ground[y][x])
-			{
-				rowFull = 0;
-				break;
-			}
-		}
-
-		if (!rowFull)
-			break;
-		deleteAmt++;
 	}
 
-	// deleteAmt /= 2;
+	WriteNumber(c, 0, 50);
 
-	// int shamt = deleteAmt * 2;
-	int shamt = deleteAmt;
-	score += deleteAmt / 2;
-
-	for (x = r + shamt; x < 128; x++)
-	{
-		for (y = 0; y < 32; y++)
-		{
-			ground[y][x - shamt] = ground[y][x];
+	// 3
+	for (i = r; i < 128 - c; i++) {
+		for (j = 0; j < 32; j++) {
+			ground[j][i] = ground[j][i + c];
 		}
 	}
+
+	// 4
+	score += c / 2;
+	if (c == 8)
+		score += TETRIS_SCORE;
 }
 
 void Fall()
@@ -404,11 +421,11 @@ void Fall()
 	ticksPerFall = 500 / adc_GetDial();
 	if (ticks % ticksPerFall == 0)
 	{
-		if (MoveCheckFall() == 1)
+		if (MoveCheckFall())
 		{
 			curBlock.origin.x -= 1;
 		}
-		else if (MoveCheckFall() == 0)
+		else
 		{
 			storedPrevious = 0;
 			UpdateGround();
@@ -419,7 +436,8 @@ void Fall()
 
 void RotateBlock()
 {
-
+	// if (!(ticks % rotDelay)) 
+	// 	return;
 	/* Check if rotation will intersect with a wall or ground
 	1. Copy curBlock, change rotation of the duplicate
 	2. Get active pixels of desired rotation
@@ -458,14 +476,19 @@ void RotateBlock()
 		}
 
 		// Check ground
-		groundCollision = groundCollision && ground[pxl.o.y][pxl.o.x];
-		groundCollision = groundCollision && ground[pxl.o.y][pxl.o.x - 1];
-		groundCollision = groundCollision && ground[pxl.o.y + 1][pxl.o.x];
-		groundCollision = groundCollision && ground[pxl.o.y + 1][pxl.o.x - 1];
+		groundCollision |= 
+			ground[pxl.o.y][pxl.o.x] || ground[pxl.o.y][pxl.o.x - 1] || 
+			ground[pxl.o.y + 1][pxl.o.x] || ground[pxl.o.y + 1][pxl.o.x - 1];
+
+		// groundCollision = groundCollision || ground[pxl.o.y - 2][pxl.o.x];
+		// groundCollision = groundCollision || ground[pxl.o.y + 3][pxl.o.x];
+		// groundCollision = groundCollision || ground[pxl.o.y - 2][pxl.o.x - 1];
+		// groundCollision = groundCollision || ground[pxl.o.y + 3][pxl.o.x - 1];
 	}
 
 	if (groundCollision)
 		return;
+
 	if (!wallCollision)
 	{
 		curBlock.rot = desired.rot;
@@ -615,9 +638,9 @@ void MoveBlock(int x)
 		return;
 
 	if (x > 0)
-		curBlock.origin.y += 2;
+		curBlock.origin.y += moveAmt;
 	if (x < 0)
-		curBlock.origin.y -= 2;
+		curBlock.origin.y -= moveAmt;
 	moves++;
 }
 
@@ -631,6 +654,9 @@ void InputHandler()
 	{
 		MoveBlock(-1);
 	}
+	
+	if (sw(1))
+		gameState = Pause;
 
 	if (btn(2))
 	{
@@ -658,6 +684,24 @@ void ClearProfile() {
 void StoreProfile() {
 	// Check if we should update the high scores
 	// Store score and name
+	int i;
+	for (i = 2; i >= 0; i--)
+	{
+		if (highScores[i].score > score) {
+			i++;
+			break;
+		}
+	}
+	if (i == 3) {
+		ClearProfile();
+		return;
+	}
+	Profile p;
+	for (i = 0; i < 4; i++) {
+		p.name[i] = name[i];
+	}
+	p.score = score;
+	highScores[i] = p;
 	ClearProfile();
 }
 
@@ -699,7 +743,7 @@ void DifficultyMenu() {
 	diff_currentLetter[0] = 0x41 + diff_offset;
 	
 	//write Letter to name
-	if(btn(1) && diff_index < 3) {
+	if(btn(4) && diff_index < 3 && !(ticks % menuDelay)) {
 		name[diff_index] = diff_currentLetter[0];
 		diff_index++;
 	}	
@@ -711,10 +755,14 @@ void DifficultyMenu() {
 	disp_Write();
 	time_Tick();
 
-	if(btn(4) && name[4] != 0x00) {
+	if(btn(1) && name[4] != 0x00) {
 		diff_offset = 0;
 		diff_currentLetter[2];
 		diff_index = 0;
+		if (sw(4))
+			moveAmt = 1;
+		else 
+			moveAmt = 2;
 		gameState = GameInit;
 	}
 }
@@ -732,14 +780,15 @@ void Init()
 			ground[i][j] = 0;
 		}
 	}
+
+	for (i = 0; i < 30; i++) {
+		for (j = 0; j < 8; j++) {
+			ground[i][j] = 1;
+		}
+	}
 	SpawnBlock();
 	gameState = Game;
 
-	// for (i = 0; i < 30; i++) {
-	// 	for (j = 0; j < 8; j++) {
-	// 		ground[i][j] = 1;
-	// 	}
-	// }
 }
 
 int ln(int x)
@@ -749,8 +798,16 @@ int ln(int x)
 
 void LoseMenu() {
 	// Display name and score
-	StoreProfile();
-	return;
+	disp_Text("GAME OVER", 0, 32);
+	disp_Text("SCORE", 2, 20);
+	WriteNumber(score, 2, 70);
+	disp_Text("BTN1 TO EXIT", 3, 20);
+
+	if (btn(1) && !(ticks % menuDelay)) {
+		gameState = Menu;
+		StoreProfile();
+		return;
+	}
 }
 
 void ShowMenu(int playSelect)
@@ -761,7 +818,7 @@ void ShowMenu(int playSelect)
 			disp_Text("PLAY", 0, 50);
 			disp_Text("SCORES", 3, 50);
 
-			if (btn(1)) {
+			if (btn(1) && !(ticks % menuDelay)) {
 				name[0] = 0x00;
 				gameState = DiffSelect;
 			}
@@ -772,17 +829,17 @@ void ShowMenu(int playSelect)
 			disp_Text("PLAY", 0, 50);
 			disp_Text("SCORES", 3, 50);
 
-			if (btn(1))
+			if (btn(1) && !(ticks % menuDelay))
 				gameState = Scores;
 		}
 }
 
 void PauseMenu() {
-	if (!sw(1)) {
+	if (!sw(1) & !(ticks % 5)) {
 		gameState = Game;
 		return;
 	}
-	if (btn(1)) {
+	if (btn(1) && !(ticks % menuDelay)) {
 		StoreProfile();
 		gameState = Menu;
 		return;
@@ -796,9 +853,36 @@ void PauseMenu() {
 	return;
 }
 
+void game_InitProfiles() {
+	Profile p;
+	p.score = 0;
+	highScores[0] = p;
+	highScores[1] = p;
+	highScores[2] = p;
+}
+
+void ScoresMenu() {
+	if (btn(1) && !(ticks % menuDelay)) {
+		gameState = Menu;
+		return;
+	}
+
+	if (!highScores[0].score) {
+		disp_Text("NO SCORE", 1, 40);
+		disp_Text("AVAILABLE", 2, 32);
+		disp_Text("BTN1 RETURN", 3, 20);
+		return;
+	}
+
+	disp_Text("SCORES", 0, 40);
+	int i;
+	for (i = 0; i < 3; i++) {
+		disp_Text(highScores[i].name, i, 30);
+		WriteNumber(highScores[i].score, i, 80);
+	}
+}
+
 void GameUpdate() {
-	if (sw(1))
-		gameState = Pause;
 	if (lost)
 		gameState = GameOver;
 	ticks++;
@@ -829,6 +913,9 @@ void game_Loop()
 			break;
 		case DiffSelect:
 			DifficultyMenu();
+			break;
+		case Scores:
+			ScoresMenu();
 			break;
 		case GameInit:
 			Init();

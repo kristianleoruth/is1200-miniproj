@@ -92,74 +92,18 @@ int main()
 {
 	PORTE = 0;
 	int i, j;
-	// for (i = 0; i < 32; i++) {
-	// 	for (j = 0; j < 128; j++) {
-	// 		// d_mat[i][j] = 0;
-	// 		// d_mat[i][j] = m1[i][j];
-	// 	}
-	// }
 	spi_PowerOnDisplay();
 	adc_Init();
-	// disp_Text("TETRIS", 1, 40);
-
-	// disp_Text("PLAY", 2, 20);
-	// disp_Text("7896", 2, 60);
 	disp_Write();
-	// time_Timer3(100000);
-	// for (i=0;i<32;i++) {
-	// 	for(j=0;j<128;j++)
-	// 		d_mat[i][j] = m1[i][j];
-	// }
 
 	TRISFSET = 0xf;
 	TRISDSET = 0xff;
 
-
+	game_InitProfiles();
 	while (1)
 	{	
 		game_Loop();
 		time_Tick();
-		// //while in menu, check for play_select
-		// int test = !(btn(1) && sw(1));
-		// PORTE = test;
-		// if (btn(1)) {
-		// 	if(play_select) {
-		// 		play_select = 0;
-		// 	} else {
-		// 		play_select = 1;
-		// 	}
-		// }
-		// //shows menu depending on play select
-		// game_ShowMenu(play_select);
-		// if (play_select && btn(1))
-		// {
-		// 	//gan
-		// 	game_Init();
-		// 	 // gameloop
-		// 	while (1)
-		// 	{
-		// 		game_Update();
-		// 		time_Tick();
-		// 		PORTE = adc_GetDial();
-		// 		if(game_Pause()) //pause returns 1 if the exit button (btn1) is pressed while the game is paused
-		// 			break;
-		// 		if (game_Lose())
-		// 			break;
-
-		// 	}
-		// }
-		// if (!play_select && btn(1)) {
-		// 	//loop for Score display
-		// 	while(1) {
-		// 		//ShowScores();
-				
-		// 		if(btn(1)) //btn1 to exit score menu
-		// 			break;
-		// 	}
-
-		// }
-		// disp_Write();
-		// time_Tick();
 	}
 
 	return 0;
