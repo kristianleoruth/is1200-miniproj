@@ -273,6 +273,47 @@ uint8_t font[] = {
 	// 0,0,0,0,0,0,0,0,
 };
 
+uint8_t font_v[] = {
+	0,1,1,1,1,0,
+	1,0,0,0,0,1,
+	0,1,1,1,1,0,
+
+	1,0,0,0,1,0,
+	1,1,1,1,1,1,
+	1,0,0,0,0,0,
+
+	1,1,0,0,1,0,
+	1,0,1,0,0,1,
+	1,0,0,1,1,1,
+
+	1,0,0,1,0,1,
+	1,0,0,1,1,1,
+	0,1,1,0,0,1,
+
+	0,0,0,1,1,1,
+	0,0,0,1,0,0,
+	1,1,1,1,1,1,
+
+	0,1,0,1,1,1,
+	1,0,0,1,0,1,
+	0,1,1,0,0,1,
+
+	0,1,1,1,1,0,
+	1,0,0,1,0,1,
+	0,1,1,0,0,0,
+
+	0,0,0,0,0,1,
+	1,1,1,1,0,1,
+	0,0,0,0,1,1,
+
+	0,1,1,0,1,0,
+	1,0,0,1,0,1,
+	0,1,1,0,1,0,
+
+	0,0,0,1,1,0,
+	1,0,1,0,0,1,
+	0,1,1,1,1,0,
+};
 /*
 ========================== 23.3.3.1 MASTER MODE OPERATION ==============================
 Perform the following steps to set up the SPI module for the Master mode operation:
@@ -487,28 +528,16 @@ void CharToArr_h(char c, uint8_t* ca) {
 }
 
 void CharToArr_v(char c, uint8_t* ca) {
-	int i, ci = (int) c, mult;
-	for (i = 0; i < 48; i++)
+	int i, mult = (int) c - 0x30;
+	for (i = 0; i < 18; i++)
 		ca[i] = 0;
-
-	if (ci <= 0x39)
-		mult = 26 + (ci - '0');
-	else if (ci <= 0x5A)
-		mult = ci - 'A'; // Offset from A
 	
-	/* Pattern for 270 deg rot:
-	index: 3 - col# + (row# * 4)
-	*/
-	/* Pattern for 90 deg rotation:
-	index: col# * 4 + 3 - row#
-	*/
-	// (40 + row#) - (col# * 8)
-	for (i = 0; i < 48; i++) {
-		// ca[i] = font[(i % 8) * 6 + 3 - ((i/8) * 6) + 48*mult];
-		// ca[i] = font[i + 48 * mult];
-		ca[i] = font[(40 + i/6) - ((i % 8) * 8) + 48*mult];
+	for (i = 0; i < 18; i++) {
+		ca[i] = font_v[i + 18 * mult];
 	}
-
+	// for (i = 0; i < 18; i++) {
+	// 	ca[i] = font_v
+	// }
 }
 
 void disp_Text(char* str, uint8_t page, uint8_t col) {
@@ -531,16 +560,31 @@ void disp_Text(char* str, uint8_t page, uint8_t col) {
 
 void disp_VerticalText(char* str, uint8_t xOffset, uint8_t yOffset) {
 	int index = 0;
-	uint8_t cArr[48];
+	uint8_t cArr[18];
 
 	int i, j;
 	while (str[index] != 0) {
 		CharToArr_v(str[index], cArr);
-		for (i = 0; i < 6; i++) {
-			for (j = 0; j < 8; j++) {
-				d_mat[yOffset + i + index * 8][xOffset + j] = cArr[i * 8 + j];
+		for (i = 0; i < 3; i++) {
+			for (j = 0; j < 6; j++) {
+				d_mat[yOffset + i + index * 5][xOffset + j] = cArr[i * 6 + j];
 			}
 		}
 		index++;
 	}
 }
+// void disp_VerticalText(char* str, uint8_t xOffset, uint8_t yOffset) {
+// 	int index = 0;
+// 	uint8_t cArr[48];
+
+// 	int i, j;
+// 	while (str[index] != 0) {
+// 		CharToArr_v(str[index], cArr);
+// 		for (i = 0; i < 6; i++) {
+// 			for (j = 0; j < 8; j++) {
+// 				d_mat[yOffset + i + index * 8][xOffset + j] = cArr[i * 8 + j];
+// 			}
+// 		}
+// 		index++;
+// 	}
+// }

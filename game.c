@@ -15,7 +15,7 @@
 Todo: 
 1. Store block fix DONE
 2. Rotate block fix (cancel rotation if ground next to curBlock) DONE
-3. Profiles
+3. Profiles DONE
 */
 
 typedef struct Coordinate
@@ -121,13 +121,34 @@ int playSelect = 1;
 int lost = 0;
 uint8_t storedPrevious = 0;
 
-int rand()
-{
+int rand() {
 	return (ticks + rots + moves);
 }
 
-void WriteNumber(uint8_t num, uint8_t page, uint8_t col)
-{
+void WriteVerticalNumber(uint8_t num, uint8_t xOffset, uint8_t yOffset) {
+	char digits[4];
+	digits[3] = 0xfe;
+
+	int i, j = 0;
+	for (i = 0; i < 3; i++) {
+		digits[i] = (char) (num % 10 + 0x30);
+		num /= 10;
+		if (!num) {
+			digits[i + 1] = 0xff;
+			digits[3] = 0xff;
+		}
+	}
+	i--;
+	while (i >= 0) {
+		char str[2];
+		str[0] = digits[i--];
+		str[1] = 0x00;
+		disp_VerticalText(str, xOffset, yOffset + j * 5);
+		j++;
+	}
+}
+
+void WriteNumber(uint8_t num, uint8_t page, uint8_t col) {
 	char digits[4];
 	digits[3] = 0xfe;
 
@@ -428,7 +449,7 @@ void UpdateGround() {
 		return;
 	}
 
-	WriteNumber(c, 0, 50);
+	// WriteNumber(c, 0, 50);
 
 	// 3
 	for (i = r; i < 128 - c; i++) {
@@ -726,29 +747,40 @@ void ClearProfile() {
 	score = 0;
 }
 
-void StoreProfile() {
-	// Check if we should update the high scores
-	// Store score and name
-	int i = 0;
-	// for (i = 2; i >= 0; i--)
-	// {
-	// 	if (highScores[i].score > score) {
-	// 		i++;
-	// 		break;
-	// 	}
-	// }
-	// if (i == 3) {
-	// 	ClearProfile();
-	// 	return;
-	// }
+void StoreProfile()
+{
+    // Check if we should update the high scores
+    // Store score and name
+    int highestLowerScore = -1;
+    int highestLowerScoreIndex = -1;
+    int i;
+    for (i = 0; i < 3; i++)
+    {
+        if ((highScores[i].score < score) && (highScores[i].score > highestLowerScore))
+        {
+            highestLowerScore = highScores[i].score;
+            highestLowerScoreIndex = i;
+        }
+    }
 
-	Profile p;
-	for (i = 0; i < 4; i++) {
-		p.name[i] = name[i];
-	}
-	p.score = score;
-	highScores[i] = p;
-	ClearProfile();
+    if (highestLowerScoreIndex != -1)
+    {
+        Profile p1;
+        for (i = 0; i < 4; i++)
+        {
+            p1.name[i] = name[i];
+        }
+        p1.score = score;
+
+        for (i = highestLowerScoreIndex + 2; i < 3; i++)
+        {
+            highScores[i] = highScores[i - 1];
+        }
+        Profile p2 = highScores[highestLowerScoreIndex];
+		highScores[highestLowerScoreIndex] = p1;
+        highScores[highestLowerScoreIndex + 1] = p2;
+    }
+    ClearProfile();
 }
 
 void DifficultyMenu() {
@@ -919,9 +951,14 @@ void PauseMenu() {
 void game_InitProfiles() {
 	Profile p;
 	p.score = 0;
-	highScores[0] = p;
-	highScores[1] = p;
-	highScores[2] = p;
+	
+	int i, j;
+	for (i = 0; i < 3; i++) {
+		for (j = 0; j < 4; j++) {
+			p.name[i] = 0x00;
+		}
+		highScores[i] = p;
+	}
 }
 
 void ScoresMenu() {
@@ -930,16 +967,18 @@ void ScoresMenu() {
 		return;
 	}
 
-	// if (!highScores[0].score) {
-	// 	disp_Text("NO SCORE", 1, 40);
-	// 	disp_Text("AVAILABLE", 2, 32);
-	// 	disp_Text("BTN1 RETURN", 3, 20);
-	// 	return;
-	// }
+	if (!highScores[0].score) {
+		disp_Text("NO SCORE", 1, 40);
+		disp_Text("AVAILABLE", 2, 32);
+		disp_Text("BTN1 RETURN", 3, 20);
+		return;
+	}
 
 	disp_Text("SCORES", 0, 40);
 	int i;
 	for (i = 0; i < 3; i++) {
+		if (highScores[i].name[0] == 0x00)
+			continue;
 		disp_Text(highScores[i].name, i + 1, 30);
 		WriteNumber(highScores[i].score, i + 1, 80);
 	}
@@ -955,6 +994,7 @@ void GameUpdate() {
 		spawnNext = 0;
 	}
 
+	WriteVerticalNumber(score, 120, 15);
 	Fall();
 	InputHandler();
 	RenderBlock();
@@ -986,6 +1026,7 @@ void game_Loop()
 			Init();
 			break;
 		case Game:
+			WriteVerticalNumber(ticksPerFall, 50, 10);
 			PORTE = ticksPerFall;
 			GameUpdate();
 			break;
@@ -998,5 +1039,6 @@ void game_Loop()
 		default:
 			break;
 	}
+	// disp_VerticalText("123", 0, 0);
 	disp_Write();
 }
