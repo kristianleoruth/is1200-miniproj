@@ -1,10 +1,14 @@
-This is an empty project template.
-Just add your own code to the existing C or assembly files.
-Any added C or assembly files will automatically be built,
-no need to edit the Makefile.
+==== TETRIS ====
+This is an implementation of TETRIS on the pic32 made with C and MIPS Assembly. 
 
-The template contains the following source files:
+==== Installation onto a Pic32 ====
+Requirements: MCB32Tools, Pic32 with Basic I/O Shield by Digilent
 
+Navigate to this directory in MCB, and input these commands:
+make
+make install (location)
+
+==== Files Description ====
 main.c:
 	Contains the entry point main()
 
@@ -14,3 +18,15 @@ vectors.S:
 stubs.c:
 	Contains stubs for functions run during micro controller
 	initialization
+
+game.c:
+	Contains main game loop and all game-related functions (including menus)
+
+utilfunc.c:
+	General utility functions (timers, dial)
+
+dispfunc.c:
+	SPI configuration and display on, disp_Write(), and disp_Text/VerticalText()
+
+miniproj.h:
+	Header file for project

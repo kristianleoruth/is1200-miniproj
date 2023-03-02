@@ -125,6 +125,9 @@ int rand() {
 	return (ticks + rots + moves);
 }
 
+/*
+Same as underneath, but call disp_VerticalText()
+*/
 void WriteVerticalNumber(uint8_t num, uint8_t xOffset, uint8_t yOffset) {
 	char digits[4];
 	digits[3] = 0xfe;
@@ -148,11 +151,17 @@ void WriteVerticalNumber(uint8_t num, uint8_t xOffset, uint8_t yOffset) {
 	}
 }
 
+/* 
+1. Get all digits of the number
+2. Convert each digit to string and call disp_Text()
+Effect: Writes a 3 digit number to screen
+*/
 void WriteNumber(uint8_t num, uint8_t page, uint8_t col) {
 	char digits[4];
 	digits[3] = 0xfe;
 
 	int i, j = 0;
+	// Getting digits by % 10, this gives digits in reverse order
 	for (i = 0; i < 3; i++) {
 		digits[i] = (char) (num % 10 + 0x30);
 		num /= 10;
@@ -170,7 +179,10 @@ void WriteNumber(uint8_t num, uint8_t page, uint8_t col) {
 		j++;
 	}
 }
-
+/* 
+    1. Set the current block to be the next one
+    2. Determine next Block
+*/
 void SpawnBlock()
 {
 	curBlock = nextBlock;
@@ -182,7 +194,10 @@ void SpawnBlock()
 	nextBlock.origin.x = 110;
 	nextBlock.origin.y = 26;
 }
-
+/* 1. If previous block was stored, prohibit storage of block
+   2. If there is a stored block, then make the stored block the current block
+   3. If there is no Stored block, store the current block and spawn next
+*/
 void StoreBlock()
 {
 	if (storedPrevious)
@@ -211,7 +226,6 @@ void StoreBlock()
 
 void ResetDMat()
 {
-	// Add code to render score and held block
 	int i, j;
 	for (i = 0; i < 32; i++)
 	{
@@ -272,7 +286,7 @@ void GetShapeSprite(uint8_t s[16], Block block)
 }
 
 /*
-Helper for GetActivePixels, stores coordinate and row to check if pixel is the left-/rightmost pixel in the shape
+Helper struct for GetActivePixels, stores coordinate and row to check if pixel is the left-/rightmost pixel in the shape
 */
 typedef struct _BlockPixel
 {
@@ -280,6 +294,11 @@ typedef struct _BlockPixel
 	uint8_t row;
 } _BlockPixel;
 
+/*
+1. Get sprite based on rotation and shape of block (16 item arr)
+2. For each value in array, if 1, then calculate x and y origin of the block (since each block is 2x2)
+Note: i%4 is the column number, i/4 row number
+*/
 void GetActivePixels(_BlockPixel activePixels[4], Block block)
 {
 	uint8_t sprite[16];
@@ -300,6 +319,8 @@ void GetActivePixels(_BlockPixel activePixels[4], Block block)
 }
 
 /*
+1. Get all active pixels of sprite (This way we can avoid overwriting ground)
+2. Draw 2x2 pixels from BlockPixel origin to d_mat
 Effect: Draws curBlock to d_mat
 */
 void RenderBlock()
@@ -318,7 +339,10 @@ void RenderBlock()
 		d_mat[pxl.o.y + 1][pxl.o.x - 1] = 1;
 	}
 }
-
+/* 
+    1. Check if there even is a stored block
+    2. Get Active pixels of stored block and write them to the d_matrix
+*/
 void ShowStoredBlock()
 {
 	if (!isBlockStored)
@@ -381,6 +405,10 @@ void RenderGround()
 	}
 }
 
+/*
+    1. Get active Pixels of desired Block (where it would like to move next)
+    2. Check if any of the pixels coincide with filled ground
+*/
 int MoveCheckFall()
 {
 	Block desired = curBlock;
@@ -400,14 +428,14 @@ int MoveCheckFall()
 	return 1;
 }
 
+/*
+1. Write block to ground array
+	- Check highest pixel for game loss condition
+2. Check ground for full rows (count and store row#)
+3. Loop over stored rows and shift higher rows into them
+4. Calc score
+*/
 void UpdateGround() {
-	/*
-	1. Write block to ground array
-		- Check highest pixel for game loss condition
-	2. Check ground for full rows (count and store row#)
-	3. Loop over stored rows and shift higher rows into them
-	4. Calc score
-	*/
 	// 1
 	_BlockPixel activePixels[4];
 	GetActivePixels(activePixels, curBlock);
@@ -597,16 +625,12 @@ void RotateBlock()
 
 /*
 	1. Get all pixels that are ON for the block
-		(16 item array, but 1:1 1 item:1 pixel, not a 4x4 sprite)
-		Maybe this can be simplified to a 4 item array and we check the 2x2 square to the right and down of it
 	2. Check for every item, that there is nothing to the left (allow left movement)
 		or nothing to the right (allow right movement)
 		Note: We need to take the right- and left-most values of each row to avoid conflicts
 Notes:
-- 30 is the y value for a pixel to be drawn right on the right wall
-- 1 is the value to be drawn on the left wall
+LEFT_WALL, RIGHT_WALL define the wall limits
 */
-
 int MoveCheck(int x)
 {
 	_BlockPixel activePixels[4];
@@ -635,12 +659,11 @@ int MoveCheck(int x)
 				continue;
 			if (pxl.o.y <= LEFT_WALL)
 			{
-				// Calculate distance from 1
-				// Add to curBlock
 				canMoveLeft = 0;
 				break;
 			}
 
+			// Check ground pixels to the left
 			if (ground[pxl.o.y - 1][pxl.o.x] || ground[pxl.o.y - 1][pxl.o.x - 1])
 			{
 				canMoveLeft = 0;
@@ -660,7 +683,7 @@ int MoveCheck(int x)
 		{
 			_BlockPixel pxl = activePixels[i];
 			uint8_t rightmost = 1;
-			// Check if there are any blocks further left
+			// Check if there are any blocks further right
 			for (j = 0; j < 4; j++)
 			{
 				_BlockPixel _pxl = activePixels[j];
@@ -673,12 +696,11 @@ int MoveCheck(int x)
 				continue;
 			if (pxl.o.y >= RIGHT_WALL)
 			{
-				// Calculate distance from 24
-				// Subtract distance from curBlock
 				canMoveRight = 0;
 				break;
 			}
 
+			// Check ground pixels to the right
 			if (ground[pxl.o.y + 2][pxl.o.x] || ground[pxl.o.y + 2][pxl.o.x - 1])
 			{
 				canMoveRight = 0;
@@ -693,6 +715,8 @@ int MoveCheck(int x)
 }
 
 /*
+1. MoveCheck
+2. Change curBlock origin
 Param: integer less than or more than 0, positive means move right, negative is move left
 */
 void MoveBlock(int x)
@@ -747,6 +771,10 @@ void ClearProfile() {
 	score = 0;
 }
 
+/*
+    1. Check if the score qualifies for the scoreboard and compute highest Score that is lower
+    2. If it does, put the profile into the place of the highest lower score and shift highScores array back
+*/
 void StoreProfile()
 {
     // Check if we should update the high scores
@@ -783,6 +811,12 @@ void StoreProfile()
     ClearProfile();
 }
 
+/*
+    1. Calculate a 128 steps value of the Dial
+    2. Set the speed by changing ticksPerFall according to chosen difficulty
+    3. Display chosen difficulty 
+    4. Name functionality, diplay current letter and write to name array
+*/
 void DifficultyMenu() {
 	int dialVal = adc_GetDial();
 	PORTE = dialVal;
@@ -794,7 +828,7 @@ void DifficultyMenu() {
 
 	ticksPerFall = percentage * MIN_SPEED;
 	int p = (1 - percentage) * 100;
-	WriteNumber(p, 1, 10);
+	// WriteNumber(p, 1, 10);
 	
 	if (ticksPerFall < MAX_SPEED)
 		ticksPerFall = MAX_SPEED;
@@ -876,11 +910,11 @@ void Init()
 		}
 	}
 
-	for (i = 0; i < 30; i++) {
-		for (j = 0; j < 8; j++) {
-			ground[i][j] = 1;
-		}
-	}
+	// for (i = 0; i < 30; i++) {
+	// 	for (j = 0; j < 8; j++) {
+	// 		ground[i][j] = 1;
+	// 	}
+	// }
 	SpawnBlock();
 	gameState = Game;
 
@@ -907,30 +941,27 @@ void LoseMenu() {
 
 void ShowMenu(int playSelect)
 {
+	disp_Text("TETRIS", 0, 45);
+	disp_Text("PLAY", 1, 50);
+	disp_Text("SCORES", 3, 50);
 	if(playSelect) {
-			ResetDMat();
-			disp_Text("O", 0, 30);
-			disp_Text("PLAY", 0, 50);
-			disp_Text("SCORES", 3, 50);
+		disp_Text("O", 1, 30);
 
-			if (btn(1) && !(ticks % menuDelay)) {
-				name[0] = 0x00;
-				gameState = DiffSelect;
-			}
+		if (btn(1) && !(ticks % menuDelay)) {
+			name[0] = 0x00;
+			gameState = DiffSelect;
 		}
-		else {
-			ResetDMat();
-			disp_Text("O", 3, 30);
-			disp_Text("PLAY", 0, 50);
-			disp_Text("SCORES", 3, 50);
+	}
+	else {
+		disp_Text("O", 3, 30);
 
-			if (btn(1) && !(ticks % menuDelay))
-				gameState = Scores;
-		}
+		if (btn(1) && !(ticks % menuDelay))
+			gameState = Scores;
+	}
 }
 
 void PauseMenu() {
-	if (!sw(1) & !(ticks % 5)) {
+	if (!sw(1) & !(ticks % 5)) { // ticks % 5 fixes a freezing bug
 		gameState = Game;
 		return;
 	}
@@ -944,7 +975,6 @@ void PauseMenu() {
 	disp_Text(name, 1, 80);
 	disp_Text("SCORE", 2, 20);
 	WriteNumber(score, 2, 80);
-	//for later implementation of pause menu graphics
 	return;
 }
 

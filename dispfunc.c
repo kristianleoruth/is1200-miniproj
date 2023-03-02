@@ -419,6 +419,7 @@ void spi_Reset(void) {
 	SPI_RESET_OFF;
 	time_Timer3(5);
 }
+
 /*
 == Power on sequence ==
 1.Apply power to VDD.
@@ -465,8 +466,6 @@ void spi_PowerOnDisplay(void)
 	spi_send_recv(0x20);
 /* ========= End of taken part ========= */
 
-	// spi_send_recv(0x2E); // Deactivate Scroll
-
 	spi_send_recv(0x20); // Horizontal Address Mode
 	spi_send_recv(0x00);
 
@@ -501,6 +500,12 @@ void disp_Write()
 }
 
 /*
+1. Empty the array
+2. Check special " " case
+3. Get offset from '0' if c is a number 
+4. Get offset from 'A' if c is a letter
+5. Offset * 48 gives offset from beginning of font array
+6. Copy values into given array
 Description: Selects and returns relevant section of font array based on parameter
 Param: ASCII byte representing a number or a letter, 48 item array
 Result: 48 item array (0/1), representing a matrix 8 cols x 6 rows (to leave some whitespace top & bottom)
@@ -527,6 +532,9 @@ void CharToArr_h(char c, uint8_t* ca) {
 	}
 }
 
+/*
+Same as above, but only need to consider numbers for vertical writing
+*/
 void CharToArr_v(char c, uint8_t* ca) {
 	int i, mult = (int) c - 0x30;
 	for (i = 0; i < 18; i++)
@@ -535,9 +543,6 @@ void CharToArr_v(char c, uint8_t* ca) {
 	for (i = 0; i < 18; i++) {
 		ca[i] = font_v[i + 18 * mult];
 	}
-	// for (i = 0; i < 18; i++) {
-	// 	ca[i] = font_v
-	// }
 }
 
 void disp_Text(char* str, uint8_t page, uint8_t col) {
@@ -548,9 +553,9 @@ void disp_Text(char* str, uint8_t page, uint8_t col) {
 	uint8_t row = page * 8 + 1;
 	int i, j;
 	while (str[index] != 0) {
-		CharToArr_h(str[index], cArr);
-		for (i = 0; i < 6; i++) {
-			for (j = 0; j < 8; j++) {
+		CharToArr_h(str[index], cArr); // Get array of character
+		for (i = 0; i < 6; i++) { // column counter
+			for (j = 0; j < 8; j++) { // row counter
 				d_mat[row + i][col + j + index * 8] = cArr[i * 8 + j];
 			}
 		}
@@ -565,26 +570,11 @@ void disp_VerticalText(char* str, uint8_t xOffset, uint8_t yOffset) {
 	int i, j;
 	while (str[index] != 0) {
 		CharToArr_v(str[index], cArr);
-		for (i = 0; i < 3; i++) {
-			for (j = 0; j < 6; j++) {
+		for (i = 0; i < 3; i++) { // column counter
+			for (j = 0; j < 6; j++) { // row counter
 				d_mat[yOffset + i + index * 5][xOffset + j] = cArr[i * 6 + j];
 			}
 		}
 		index++;
 	}
 }
-// void disp_VerticalText(char* str, uint8_t xOffset, uint8_t yOffset) {
-// 	int index = 0;
-// 	uint8_t cArr[48];
-
-// 	int i, j;
-// 	while (str[index] != 0) {
-// 		CharToArr_v(str[index], cArr);
-// 		for (i = 0; i < 6; i++) {
-// 			for (j = 0; j < 8; j++) {
-// 				d_mat[yOffset + i + index * 8][xOffset + j] = cArr[i * 8 + j];
-// 			}
-// 		}
-// 		index++;
-// 	}
-// }

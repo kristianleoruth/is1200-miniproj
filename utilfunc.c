@@ -47,10 +47,10 @@ void adc_Init() {
     AD1PCFG = 0xFFFB;   //set port
     AD1CON1 = 0;        //end sampling
     AD1CHS = 0x00020000;//connect port to sample and hold amplifier
-    AD1CSSL = 0;
+    AD1CSSL = 0;       //no inputs are scanned
     AD1CON3 = 0x0002; //set conversion clock
     AD1CON2 = 0;
-    TRISBCLR = 0x400;
+    TRISBCLR = 0x400; //set input
     time_Timer3(1000); //100ms delay
 }
 
@@ -58,12 +58,11 @@ int adc_GetDial() {
     AD1CON1SET = 0x8000; //turn adc-module on
     AD1CON1SET = 0x0002; //tell SAH to start sampling 
     time_Timer3(1000); //100ms delay
-    AD1CON1CLR = 0x0002;
-    while(!(AD1CON1&0x0001));
-    AD1CON1 = 0;
+    AD1CON1CLR = 0x0002; //stop sampling
+    while(!(AD1CON1&0x0001)); //wait until conversion is done
+    AD1CON1 = 0; 
     return ADC1BUF0>>2;
-    
-    }
+}
 
 int btn(int select) {
     switch (select) {

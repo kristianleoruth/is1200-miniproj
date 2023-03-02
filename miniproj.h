@@ -15,10 +15,12 @@ void disp_VerticalText(char* str, uint8_t xOffset, uint8_t yOffset);
 uint8_t d_mat[32][128];
 
 /* Game */
+void game_InitProfiles(void);
 void game_Loop();
 
 /* Switches and Btns */
 int btn(int select);
+int sw(int select);
 
 /* Timer functions */
 void time_Timer3(int time);
